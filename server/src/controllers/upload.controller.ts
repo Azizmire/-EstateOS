@@ -1,27 +1,39 @@
-import type { UploadController as UploadControllerContract } from './upload.controller.contract';
-import type { UploadControllerDependencies } from './upload.controller.dependencies';
+import {
+  DOCUMENT_MIME_TYPES,
+  IMAGE_MIME_TYPES,
+  LEASE_UPLOAD_FOLDER,
+  MAINTENANCE_UPLOAD_FOLDER,
+  PROPERTY_UPLOAD_FOLDER,
+} from '../constants/upload.constants.js';
+import type { CreateFileAssetInput } from '../services/file-asset.service.js';
+import type { UploadController as UploadControllerContract } from './upload.controller.contract.js';
+import type { UploadControllerDependencies } from './upload.controller.dependencies.js';
 
 export type UploadFileInput = {
   buffer: Buffer;
   filename: string;
-  mimeType: string;
-  extension: string;
-  uploadedById?: string;
+  uploadedById: string;
+  targetId: string;
+  label?: string;
 };
 
 export class UploadController implements UploadControllerContract {
   constructor(private readonly dependencies: UploadControllerDependencies) {}
 
   async uploadPropertyImage(input: UploadFileInput) {
+    await this.dependencies.fileValidationService.validate(input.buffer, IMAGE_MIME_TYPES);
     const image = await this.dependencies.imageService.optimize(input.buffer);
     const stored = await this.dependencies.uploadService.upload(
       image.buffer,
       image.mimeType,
       image.extension,
+      PROPERTY_UPLOAD_FOLDER,
     );
 
-    return this.dependencies.fileAssetService.create({
+    return this.persist(stored.key, {
       uploadedById: input.uploadedById,
+      targetId: input.targetId,
+      label: input.label,
       category: 'PROPERTY_IMAGE',
       key: stored.key,
       filename: input.filename,
@@ -35,32 +47,54 @@ export class UploadController implements UploadControllerContract {
   }
 
   async uploadLeaseDocument(input: UploadFileInput) {
-    return this.uploadFile(input, 'LEASE_DOCUMENT');
+    const detected = await this.dependencies.fileValidationService.validate(
+      input.buffer,
+      DOCUMENT_MIME_TYPES,
+    );
+    return this.uploadFile(input, 'LEASE_DOCUMENT', LEASE_UPLOAD_FOLDER, detected);
   }
 
   async uploadMaintenanceAttachment(input: UploadFileInput) {
-    return this.uploadFile(input, 'MAINTENANCE_ATTACHMENT');
+    const detected = await this.dependencies.fileValidationService.validate(
+      input.buffer,
+      [...IMAGE_MIME_TYPES, ...DOCUMENT_MIME_TYPES],
+    );
+    return this.uploadFile(input, 'MAINTENANCE_ATTACHMENT', MAINTENANCE_UPLOAD_FOLDER, detected);
   }
 
   private async uploadFile(
     input: UploadFileInput,
     category: 'LEASE_DOCUMENT' | 'MAINTENANCE_ATTACHMENT',
+    folder: string,
+    detected: { mimeType: string; extension: string },
   ) {
     const stored = await this.dependencies.uploadService.upload(
       input.buffer,
-      input.mimeType,
-      input.extension,
+      detected.mimeType,
+      detected.extension,
+      folder,
     );
 
-    return this.dependencies.fileAssetService.create({
+    return this.persist(stored.key, {
       uploadedById: input.uploadedById,
+      targetId: input.targetId,
+      label: input.label,
       category,
       key: stored.key,
       filename: input.filename,
       mimeType: stored.mimeType,
-      extension: input.extension,
+      extension: detected.extension,
       size: stored.size,
       uploadedAt: new Date(),
     });
+  }
+
+  private async persist(key: string, input: CreateFileAssetInput) {
+    try {
+      return await this.dependencies.fileAssetService.create(input);
+    } catch (error) {
+      await this.dependencies.uploadService.delete(key).catch(() => undefined);
+      throw error;
+    }
   }
 }
