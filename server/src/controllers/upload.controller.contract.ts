@@ -1,0 +1,1 @@
+export interface UploadController{uploadPropertyImage(...args:unknown[]):Promise<unknown>;uploadLeaseDocument(...args:unknown[]):Promise<unknown>;uploadMaintenanceAttachment(...args:unknown[]):Promise<unknown>;}
