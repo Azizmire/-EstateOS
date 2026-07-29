@@ -19,6 +19,7 @@
     "dotenv": "latest",
     "express": "latest",
     "jsonwebtoken": "latest",
+    "swagger-ui-express": "latest",
     "zod": "latest"
   },
   "devDependencies": {
@@ -26,6 +27,7 @@
     "@types/express": "latest",
     "@types/jsonwebtoken": "latest",
     "@types/node": "latest",
+    "@types/swagger-ui-express": "latest",
     "prisma": "latest",
     "tsx": "latest",
     "typescript": "latest",
