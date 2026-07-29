@@ -3,6 +3,7 @@ import express from 'express';
 import { env } from './config/env.js';
 import authRoutes from './routes/auth.js';
 import propertyRoutes from './routes/properties.js';
+import tenantRoutes from './routes/tenants.js';
 import { errorHandler, notFound } from './middleware/error.js';
 
 export const app = express();
@@ -17,6 +18,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
+app.use('/api/tenants', tenantRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
