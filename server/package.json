@@ -20,7 +20,10 @@
     "cors": "latest",
     "dotenv": "latest",
     "express": "latest",
+    "file-type": "latest",
     "jsonwebtoken": "latest",
+    "multer": "latest",
+    "sharp": "latest",
     "swagger-ui-express": "latest",
     "zod": "latest"
   },
@@ -28,6 +31,7 @@
     "@types/cors": "latest",
     "@types/express": "latest",
     "@types/jsonwebtoken": "latest",
+    "@types/multer": "latest",
     "@types/node": "latest",
     "@types/supertest": "latest",
     "@types/swagger-ui-express": "latest",
