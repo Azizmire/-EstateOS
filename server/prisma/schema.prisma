@@ -59,6 +59,12 @@ enum PaymentType {
   OTHER
 }
 
+enum FileCategory {
+  PROPERTY_IMAGE
+  LEASE_DOCUMENT
+  MAINTENANCE_ATTACHMENT
+}
+
 model User {
   id           String   @id @default(cuid())
   name         String
@@ -69,6 +75,7 @@ model User {
   updatedAt    DateTime @updatedAt
 
   assignedRequests MaintenanceRequest[] @relation("AssignedTechnician")
+  uploadedFiles    FileAsset[]
 }
 
 model Property {
@@ -85,6 +92,7 @@ model Property {
 
   units       Unit[]
   maintenance MaintenanceRequest[]
+  images      PropertyImage[]
 }
 
 model Unit {
@@ -139,6 +147,7 @@ model Lease {
   unit            Unit          @relation(fields: [unitId], references: [id], onDelete: Restrict)
   tenants         LeaseTenant[]
   payments        Payment[]
+  documents       LeaseDocument[]
 
   @@index([unitId])
   @@index([status])
@@ -175,6 +184,7 @@ model MaintenanceRequest {
   tenant               Tenant?   @relation(fields: [tenantId], references: [id], onDelete: SetNull)
   assignedTechnician   User?     @relation("AssignedTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
   updates              MaintenanceUpdate[]
+  attachments          MaintenanceAttachment[]
 
   @@index([propertyId])
   @@index([unitId])
@@ -215,4 +225,70 @@ model Payment {
   @@index([leaseId])
   @@index([status])
   @@index([dueDate])
+}
+
+model FileAsset {
+  id               String       @id @default(cuid())
+  uploadedById     String?
+  category         FileCategory
+  key              String       @unique
+  originalFilename String
+  mimeType         String
+  extension        String
+  size             Int
+  checksum         String?
+  width            Int?
+  height           Int?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  uploadedBy       User?                    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  propertyImage    PropertyImage?
+  leaseDocument    LeaseDocument?
+  maintenanceFile  MaintenanceAttachment?
+
+  @@index([uploadedById])
+  @@index([category])
+  @@index([createdAt])
+}
+
+model PropertyImage {
+  id          String   @id @default(cuid())
+  propertyId  String
+  fileId      String   @unique
+  thumbnailKey String?
+  altText     String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  property    Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  file        FileAsset @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId, sortOrder])
+}
+
+model LeaseDocument {
+  id          String   @id @default(cuid())
+  leaseId     String
+  fileId      String   @unique
+  title       String?
+  createdAt   DateTime @default(now())
+
+  lease       Lease     @relation(fields: [leaseId], references: [id], onDelete: Cascade)
+  file        FileAsset @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([leaseId])
+}
+
+model MaintenanceAttachment {
+  id          String   @id @default(cuid())
+  requestId   String
+  fileId      String   @unique
+  caption     String?
+  createdAt   DateTime @default(now())
+
+  request     MaintenanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  file        FileAsset          @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
 }
