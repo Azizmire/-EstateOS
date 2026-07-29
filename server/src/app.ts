@@ -3,6 +3,7 @@ import express from 'express';
 import { env } from './config/env.js';
 import authRoutes from './routes/auth.js';
 import dashboardRoutes from './routes/dashboard.js';
+import docsRoutes from './routes/docs.js';
 import leaseRoutes from './routes/leases.js';
 import maintenanceRoutes from './routes/maintenance.js';
 import paymentRoutes from './routes/payments.js';
@@ -20,6 +21,7 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'estateos-api', timestamp: new Date().toISOString() });
 });
 
+app.use('/api', docsRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/properties', propertyRoutes);
