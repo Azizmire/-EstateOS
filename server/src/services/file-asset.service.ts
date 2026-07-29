@@ -1,12 +1,15 @@
-import type { StoredFileMetadata } from '../storage/storage-metadata';
+import type { FileAsset, FileCategory } from '@prisma/client';
+import type { StoredFileMetadata } from '../storage/storage-metadata.js';
 
 export interface CreateFileAssetInput extends StoredFileMetadata {
   uploadedById?: string;
-  category: 'PROPERTY_IMAGE' | 'LEASE_DOCUMENT' | 'MAINTENANCE_ATTACHMENT';
+  category: FileCategory;
+  targetId: string;
+  label?: string;
 }
 
 export interface FileAssetService {
-  create(input: CreateFileAssetInput): Promise<unknown>;
-  findById(id: string): Promise<unknown>;
+  create(input: CreateFileAssetInput): Promise<FileAsset>;
+  findById(id: string): Promise<FileAsset>;
   delete(id: string): Promise<void>;
 }
