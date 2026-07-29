@@ -1,23 +1,27 @@
 import multer from 'multer';
+import {
+  ATTACHMENT_MIME_TYPES,
+  DOCUMENT_MIME_TYPES,
+  IMAGE_MIME_TYPES,
+  MAX_DOCUMENT_SIZE,
+  MAX_IMAGE_SIZE,
+} from '../constants/upload.constants.js';
+import { InvalidUploadError } from '../storage/storage-errors.js';
 
-const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
-const MAX_DOCUMENT_SIZE = 25 * 1024 * 1024;
+function createUpload(allowedMimeTypes: readonly string[], fileSize: number) {
+  return multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize, files: 1, fields: 5 },
+    fileFilter: (_req, file, callback) => {
+      if (!allowedMimeTypes.includes(file.mimetype)) {
+        callback(new InvalidUploadError(`Unsupported declared file type: ${file.mimetype}`));
+        return;
+      }
+      callback(null, true);
+    },
+  });
+}
 
-const imageTypes = ['image/jpeg','image/png','image/webp'];
-const documentTypes = ['application/pdf'];
-
-export const imageUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_IMAGE_SIZE },
-  fileFilter: (_req, file, cb) => {
-    cb(null, imageTypes.includes(file.mimetype));
-  }
-});
-
-export const documentUpload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_DOCUMENT_SIZE },
-  fileFilter: (_req, file, cb) => {
-    cb(null, documentTypes.includes(file.mimetype));
-  }
-});
+export const imageUpload = createUpload(IMAGE_MIME_TYPES, MAX_IMAGE_SIZE);
+export const documentUpload = createUpload(DOCUMENT_MIME_TYPES, MAX_DOCUMENT_SIZE);
+export const attachmentUpload = createUpload(ATTACHMENT_MIME_TYPES, MAX_DOCUMENT_SIZE);
