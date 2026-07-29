@@ -8,14 +8,7 @@ import {
 import type { CreateFileAssetInput } from '../services/file-asset.service.js';
 import type { UploadController as UploadControllerContract } from './upload.controller.contract.js';
 import type { UploadControllerDependencies } from './upload.controller.dependencies.js';
-
-export type UploadFileInput = {
-  buffer: Buffer;
-  filename: string;
-  uploadedById: string;
-  targetId: string;
-  label?: string;
-};
+import type { UploadFileInput } from './upload.controller.types.js';
 
 export class UploadController implements UploadControllerContract {
   constructor(private readonly dependencies: UploadControllerDependencies) {}
