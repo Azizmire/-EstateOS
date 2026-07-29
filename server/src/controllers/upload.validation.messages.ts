@@ -1,0 +1,1 @@
+export const UploadValidationMessages={FILE_REQUIRED:'A file is required.',FILE_TOO_LARGE:'The uploaded file exceeds the maximum allowed size.',INVALID_CONTENT_TYPE:'Unsupported file type.'} as const;
