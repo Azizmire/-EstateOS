@@ -76,6 +76,7 @@ model User {
 
   assignedRequests MaintenanceRequest[] @relation("AssignedTechnician")
   uploadedFiles    FileAsset[]
+  auditLogs        AuditLog[]
 }
 
 model Property {
@@ -291,4 +292,23 @@ model MaintenanceAttachment {
   file        FileAsset          @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
   @@index([requestId])
+}
+
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  actor      User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([createdAt])
 }
