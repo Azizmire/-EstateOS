@@ -1,8 +1,9 @@
+import { UserRole } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { hashPassword, signToken, verifyPassword } from '../lib/auth.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -10,6 +11,7 @@ const registerSchema = z.object({
   name: z.string().trim().min(2).max(100),
   email: z.string().trim().email().transform((value) => value.toLowerCase()),
   password: z.string().min(8).max(128),
+  role: z.nativeEnum(UserRole).default(UserRole.MANAGER),
 });
 
 const loginSchema = z.object({
@@ -17,7 +19,32 @@ const loginSchema = z.object({
   password: z.string().min(1),
 });
 
-router.post('/register', async (req, res, next) => {
+router.post('/bootstrap', async (req, res, next) => {
+  try {
+    const input = registerSchema.omit({ role: true }).parse(req.body);
+    const userCount = await prisma.user.count();
+
+    if (userCount > 0) {
+      return res.status(409).json({ message: 'EstateOS has already been initialized' });
+    }
+
+    const user = await prisma.user.create({
+      data: {
+        name: input.name,
+        email: input.email,
+        passwordHash: await hashPassword(input.password),
+        role: UserRole.ADMIN,
+      },
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
+    });
+
+    return res.status(201).json({ user, token: signToken({ id: user.id, role: user.role }) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/register', requireAuth, requireRole(UserRole.ADMIN), async (req, res, next) => {
   try {
     const input = registerSchema.parse(req.body);
     const existing = await prisma.user.findUnique({ where: { email: input.email } });
@@ -31,6 +58,7 @@ router.post('/register', async (req, res, next) => {
         name: input.name,
         email: input.email,
         passwordHash: await hashPassword(input.password),
+        role: input.role,
       },
       select: { id: true, name: true, email: true, role: true, createdAt: true },
     });

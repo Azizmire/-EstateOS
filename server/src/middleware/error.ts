@@ -34,6 +34,18 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
     }
   }
 
+  if (error instanceof Error) {
+    const statusCode = (error as Error & { statusCode?: unknown }).statusCode;
+    if (
+      typeof statusCode === 'number'
+      && Number.isInteger(statusCode)
+      && statusCode >= 400
+      && statusCode < 500
+    ) {
+      return res.status(statusCode).json({ message: error.message });
+    }
+  }
+
   console.error(error);
   return res.status(500).json({ message: 'Internal server error' });
 }

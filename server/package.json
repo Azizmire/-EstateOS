@@ -15,7 +15,7 @@
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "latest",
+    "@prisma/client": "^6.16.2",
     "bcryptjs": "latest",
     "cors": "latest",
     "dotenv": "latest",
@@ -36,7 +36,7 @@
     "@types/supertest": "latest",
     "@types/swagger-ui-express": "latest",
     "@vitest/coverage-v8": "latest",
-    "prisma": "latest",
+    "prisma": "^6.16.2",
     "supertest": "latest",
     "tsx": "latest",
     "typescript": "latest",

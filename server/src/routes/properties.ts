@@ -1,11 +1,11 @@
 import { Router } from 'express';
-import { UnitStatus } from '@prisma/client';
+import { UnitStatus, UserRole } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requireRole(UserRole.ADMIN, UserRole.MANAGER));
 
 const propertySchema = z.object({
   name: z.string().trim().min(2).max(120),

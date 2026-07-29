@@ -1,13 +1,17 @@
-import { LeaseStatus, UnitStatus } from '@prisma/client';
+import { LeaseStatus, UnitStatus, UserRole } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requireRole(UserRole.ADMIN, UserRole.MANAGER));
 
 const dateSchema = z.coerce.date();
+const OCCUPYING_LEASE_STATUSES: readonly LeaseStatus[] = [
+  LeaseStatus.ACTIVE,
+  LeaseStatus.EXPIRING,
+];
 
 const leaseSchema = z
   .object({
@@ -131,7 +135,7 @@ router.post('/', async (req, res, next) => {
         include: leaseInclude,
       });
 
-      if ([LeaseStatus.ACTIVE, LeaseStatus.EXPIRING].includes(created.status)) {
+      if (OCCUPYING_LEASE_STATUSES.includes(created.status)) {
         await tx.unit.update({ where: { id: input.unitId }, data: { status: UnitStatus.OCCUPIED } });
       }
 
@@ -199,7 +203,7 @@ router.patch('/:id', async (req, res, next) => {
         include: leaseInclude,
       });
 
-      const isOccupying = [LeaseStatus.ACTIVE, LeaseStatus.EXPIRING].includes(updated.status);
+      const isOccupying = OCCUPYING_LEASE_STATUSES.includes(updated.status);
       await tx.unit.update({
         where: { id: updated.unitId },
         data: { status: isOccupying ? UnitStatus.OCCUPIED : UnitStatus.VACANT },
@@ -233,7 +237,7 @@ router.delete('/:id', async (req, res, next) => {
     await prisma.$transaction(async (tx) => {
       const lease = await tx.lease.findUnique({ where: { id: req.params.id } });
       if (!lease) throw Object.assign(new Error('Lease not found'), { statusCode: 404 });
-      if ([LeaseStatus.ACTIVE, LeaseStatus.EXPIRING].includes(lease.status)) {
+      if (OCCUPYING_LEASE_STATUSES.includes(lease.status)) {
         throw Object.assign(new Error('Active leases must be ended or terminated before deletion'), { statusCode: 409 });
       }
 

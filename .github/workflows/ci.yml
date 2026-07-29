@@ -17,7 +17,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm install
+      - run: npm ci
       - run: npm run build
 
   server:
@@ -32,7 +32,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: server/package.json
-      - run: npm install
+      - run: npm ci
       - run: npm run prisma:generate
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/estateos_test
