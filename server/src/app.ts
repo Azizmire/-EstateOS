@@ -3,6 +3,8 @@ import express from 'express';
 import { env } from './config/env.js';
 import authRoutes from './routes/auth.js';
 import leaseRoutes from './routes/leases.js';
+import maintenanceRoutes from './routes/maintenance.js';
+import paymentRoutes from './routes/payments.js';
 import propertyRoutes from './routes/properties.js';
 import tenantRoutes from './routes/tenants.js';
 import { errorHandler, notFound } from './middleware/error.js';
@@ -21,6 +23,8 @@ app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/tenants', tenantRoutes);
 app.use('/api/leases', leaseRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/maintenance', maintenanceRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
