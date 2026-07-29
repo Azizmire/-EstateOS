@@ -1,0 +1,1 @@
+export const UploadAuditEvents={PROPERTY_IMAGE_UPLOADED:'property.image.uploaded',LEASE_DOCUMENT_UPLOADED:'lease.document.uploaded',MAINTENANCE_ATTACHMENT_UPLOADED:'maintenance.attachment.uploaded'} as const;
