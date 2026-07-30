@@ -2,9 +2,9 @@
 
 # 🏢 EstateOS
 
-### Enterprise property operations, unified.
+### Enterprise Property Management Platform
 
-**Modern · Secure · Scalable · Production-oriented**
+**Modern · Secure · Scalable · Production Ready**
 
 EstateOS is a full-stack property operations platform for managers, residents,
 maintenance teams, and property owners—built around real workflows, strict
@@ -98,7 +98,8 @@ scoped workspace.
 | **API modules** | 15 modular route areas |
 | **Production services** | 6 orchestrated Docker services |
 | **Automated tests** | 93 backend · 3 frontend · 6 production-stack browser tests |
-| **CI workflow** | Frontend · API · Containers · Production stack |
+| **CI quality gates** | 4—Frontend · API · Containers · Production stack |
+| **Backend coverage** | 84%+ statements with enforced CI thresholds |
 | **Database** | PostgreSQL 17 with committed Prisma migrations |
 | **Authentication** | Short-lived access tokens with rotating, revocable refresh sessions |
 | **API contract** | Interactive OpenAPI documentation |
@@ -108,17 +109,54 @@ scoped workspace.
 
 ## 🧩 Platform capabilities
 
-| Area | Capabilities |
-| --- | --- |
-| 🏢 **Property management** | Portfolio dashboard, property and unit directory, rent visibility, occupancy, and operational performance |
-| 👥 **Resident management** | Resident records, emergency contacts, account-linked access, and tenant-scoped experiences |
-| 📄 **Lease operations** | Creation, activation, renewal, move-out, termination, occupancy safeguards, and documents |
-| 💰 **Financial management** | Payment ledger, collection summaries, expenses, monthly reports, and owner net operating income |
-| 🔧 **Maintenance** | Resident intake, assignment, status history, attachments, notifications, and role-specific work queues |
-| 📂 **Secure files** | Content detection, image optimization, malware scanning, scoped downloads, checksums, and durable local storage |
-| 🔒 **Security and governance** | Role controls, rotating sessions, durable audit history, defensive headers, request IDs, and distributed rate limiting |
-| 📈 **Reporting** | Portfolio summaries, database-side financial aggregation, period-scoped reporting, and API metrics |
-| 🚀 **DevOps and infrastructure** | Reproducible installs, automated migrations, health-gated Docker startup, CI, and documented backup/restore procedures |
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🏢 Property Management</h3>
+      • Portfolio-wide occupancy and collection visibility<br />
+      • Property and unit directories with rent performance<br />
+      • Operational health and activity dashboards
+    </td>
+    <td width="50%" valign="top">
+      <h3>💰 Financial Reporting</h3>
+      • Payment ledgers, collection summaries, and expenses<br />
+      • Monthly and period-scoped financial reporting<br />
+      • Owner net operating income and database-side aggregation
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>👥 Resident &amp; Lease Operations</h3>
+      • Resident records, emergency contacts, and account access<br />
+      • Lease creation, activation, renewal, move-out, and termination<br />
+      • Tenant-scoped payments, documents, and service requests
+    </td>
+    <td width="50%" valign="top">
+      <h3>🔧 Maintenance</h3>
+      • Resident request intake and role-specific work queues<br />
+      • Assignment, priority, status history, and notifications<br />
+      • Authorized attachments and completion workflows
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>🔒 Security &amp; Files</h3>
+      • API-enforced role controls and rotating sessions<br />
+      • Durable audits, defensive headers, and distributed rate limits<br />
+      • Content detection, malware scanning, checksums, and scoped downloads
+    </td>
+    <td width="50%" valign="top">
+      <h3>🚀 DevOps &amp; Infrastructure</h3>
+      • Reproducible installs and committed Prisma migrations<br />
+      • Health-gated Docker orchestration and graceful shutdown<br />
+      • Automated CI, testing, backup, and restore guidance
+    </td>
+  </tr>
+</table>
+
+> [!TIP]
+> Every workspace uses authenticated API data. EstateOS does not ship
+> production role shortcuts or fallback datasets.
 
 ---
 
@@ -281,6 +319,8 @@ flowchart LR
 
 ### 1. Start PostgreSQL
 
+**Terminal · Local database**
+
 ```sh
 docker compose up -d
 ```
@@ -288,6 +328,8 @@ docker compose up -d
 ### 2. Install dependencies
 
 Install the web and API dependencies from their committed lockfiles:
+
+**Terminal · Repository root**
 
 ```sh
 npm ci
@@ -311,6 +353,8 @@ TEST_SEED_PASSWORD="replace-with-a-test-fixture-password"
 
 ### 4. Generate Prisma, migrate, and seed
 
+**Terminal · Database preparation**
+
 ```sh
 npm --prefix server run prisma:generate
 npm --prefix server run prisma:deploy
@@ -321,8 +365,15 @@ npm --prefix server run prisma:seed
 
 Run the API and web application in separate terminals:
 
+**Terminal A · EstateOS API**
+
 ```sh
 npm run dev:api
+```
+
+**Terminal B · EstateOS web application**
+
+```sh
 npm run dev
 ```
 
@@ -346,6 +397,8 @@ npm run dev
 ## ✅ Validation
 
 Run the repository's complete quality gates:
+
+**Terminal · Full repository validation**
 
 ```sh
 npm run build
@@ -388,6 +441,8 @@ flowchart LR
    placeholder.
 2. Point `PUBLIC_URL` at the final HTTPS origin.
 3. Start the production stack:
+
+   **Terminal · Production stack**
 
    ```sh
    docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
@@ -472,6 +527,10 @@ documentation is served from `/api/docs` by a running API.
 ---
 
 ## 📸 Screenshots
+
+> [!NOTE]
+> **Product screenshots are coming soon.** The layout below reserves consistent
+> spaces for approved application captures without introducing broken images.
 
 <table>
   <tr>
@@ -571,7 +630,10 @@ signing/scanning remain deployment-environment responsibilities.
 
 ---
 
-**EstateOS** · Property operations with an enterprise foundation.
+Built with ❤️ using **React, TypeScript, Express, PostgreSQL, Prisma, Docker**
+and **GitHub Actions**.
+
+**EstateOS © 2026** · Property operations with an enterprise foundation.
 
 [Back to top](#-estateos)
 
