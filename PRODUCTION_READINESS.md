@@ -1,162 +1,176 @@
 # EstateOS Production Readiness Report
 
-**Date:** July 29, 2026
+**Verification date:** July 29, 2026
+
 **Overall completion:** **96%**
-**Decision:** **Release candidate; production approval remains conditional on deployment-environment controls**
+
+**Decision:** **Release candidate; final production approval is conditional on deployment-environment evidence**
 
 ## Executive Summary
 
-All repository-controlled release gates now pass in GitHub Actions. EstateOS
-builds from clean lockfiles, applies its PostgreSQL migrations, passes the
-enforced backend coverage thresholds, builds both production images, starts the
-complete Docker production stack, becomes healthy, seeds explicit test
-identities, and passes the five-role browser workflow suite.
+EstateOS was reverified from clean dependency lockfiles locally and through the
+complete GitHub Actions pipeline. All repository-controlled release gates pass:
+the frontend and backend build, Prisma validates and generates, PostgreSQL
+migrations apply to a clean database, all test tiers pass, both production
+images build, the complete Docker stack becomes healthy, and all five user
+roles authenticate through the deployed web application.
 
-EstateOS is intentionally not labeled 100% complete. Final TLS termination,
-managed secrets, external monitoring/alerting, penetration testing, restore
-drills, and realistic production-volume load testing depend on the selected
-hosting environment and have not been evidenced by this repository run.
+EstateOS is not marked 100% complete because final managed-secret integration,
+TLS and penetration testing, production observability, a backup restoration
+drill, representative load testing, and image supply-chain controls require the
+selected hosting environment.
 
-## Completed Remediation
+## Build Results
 
-- Fixed all six previously confirmed release-blocking implementation defects.
-- Removed demo identities, demo sign-in controls, and hardcoded KPI behavior
-  from production runtime paths.
-- Connected Admin, Manager, Owner, Tenant, and Maintenance workflows to
+| Build check | Result |
+|---|---|
+| Clean root install (`npm ci`) | Pass |
+| Clean backend install (`npm ci`) | Pass |
+| Prisma client generation and schema validation | Pass |
+| Frontend TypeScript and Vite production build | Pass |
+| Backend TypeScript production build | Pass |
+| Frontend production image | Pass |
+| API production image | Pass |
+| Production dependency audit | Pass — 0 known vulnerabilities |
+
+The generated frontend JavaScript bundle is 243.38 kB (73.67 kB gzip), with
+17.41 kB of CSS (4.08 kB gzip).
+
+## Test Results
+
+| Test suite | Verified result |
+|---|---|
+| Backend unit/integration suite with PostgreSQL | 91 passed |
+| Frontend component suite | 3 passed |
+| Playwright end-to-end suite | 6 passed |
+| Admin login and workspace | Pass |
+| Manager login and workspace | Pass |
+| Owner login and workspace | Pass |
+| Tenant login and workspace | Pass |
+| Maintenance login and workspace | Pass |
+| Tenant maintenance-request database workflow | Pass |
+
+The local backend run passed 90 tests and skipped the one PostgreSQL-only file
+as designed. GitHub Actions supplied PostgreSQL and passed all 91 backend tests.
+
+## Coverage
+
+| Metric | Result |
+|---|---:|
+| Statements | 84.74% |
+| Branches | 70.13% |
+| Functions | 91.03% |
+| Lines | 87.56% |
+
+All enforced backend coverage thresholds pass. Frontend and end-to-end tests
+are present and pass; frontend coverage is not currently a numeric release
+gate.
+
+## Docker Verification
+
+The CI production-stack job built the repository's production images and
+started `docker-compose.prod.yml` with PostgreSQL, Redis, ClamAV, API, and web
+services. The stack reached healthy status inside the configured timeout,
+executed the compiled production seed, passed the browser workflows through
+the deployed web endpoint, emitted service status/logs, and shut down cleanly.
+
+## PostgreSQL Migration Verification
+
+CI started a clean PostgreSQL 17 service and successfully ran
+`prisma migrate deploy` before the backend build and tests. The production
+compose stack also ran the one-shot migration service successfully before API
+health verification and end-to-end testing.
+
+## CI Status
+
+Fresh full verification:
+[GitHub Actions run 30505615895, attempt 2](https://github.com/Azizmire/-EstateOS/actions/runs/30505615895/attempts/2)
+
+| CI job | Result |
+|---|---|
+| Frontend | Pass |
+| API and PostgreSQL | Pass |
+| Container image builds | Pass |
+| Production Docker stack and role E2E | Pass |
+
+The workflow action dependencies were upgraded to their current Node 24
+runtime majors (`checkout@v6`, `setup-node@v6`, `setup-buildx-action@v4`, and
+`build-push-action@v7`) to remove the previous Node 20 runtime warnings.
+
+## Resolved Issues
+
+- Fixed all six previously confirmed release blockers.
+- Removed demo sign-in controls, demo identities, hardcoded KPI behavior, and
+  unused upload implementations from production runtime paths.
+- Connected Admin, Manager, Owner, Tenant, and Maintenance behavior to
   PostgreSQL-backed records.
-- Added Tenant and Owner assignment validation, lease renewal, activation,
-  move-out, termination, and deletion safeguards.
-- Added 15-minute access tokens and rotating, revocable, database-backed
+- Completed lease renewal, activation, move-out, termination, assignment
+  validation, and deletion safeguards.
+- Added short-lived access tokens and rotating, revocable, database-backed
   refresh sessions.
 - Added Redis-backed distributed rate limiting and scheduler leader locking.
-- Made mutation completion wait for durable audit persistence and corrected the
-  audit-failure response framing path.
-- Added required ClamAV upload scanning, content detection, and SHA-256
-  checksums.
-- Added pagination, accounting-period filters, and database-side reporting
-  aggregation.
-- Corrected and expanded OpenAPI, operations, security, backup, restore, and
+- Made audit persistence durable and corrected malformed audit-failure response
+  framing.
+- Added required ClamAV upload scanning, content detection, file checksums, and
+  authorization checks.
+- Added pagination, accounting-period filters, and database-side aggregation.
+- Corrected and expanded OpenAPI, security, operations, backup, restore, and
   release documentation.
-- Removed 20 unused upload modules that were dead code.
-- Added frontend, backend unit, PostgreSQL integration, and Playwright
-  end-to-end coverage.
-- Added one-shot production migrations and healthy PostgreSQL, Redis, ClamAV,
-  API, and web services.
+- Fixed npm lockfile compatibility, coverage timeouts, and production seeding
+  so clean CI and Docker execution are reproducible.
+- Added frontend, backend, PostgreSQL integration, and Playwright tests and
+  raised backend coverage above 80% for statements and lines.
+- Upgraded CI actions to supported Node 24 runtime releases.
 
-## Verified Release Evidence
+No unresolved repository-controlled release-blocking bug was found in this
+verification.
 
-GitHub Actions run:
-`https://github.com/Azizmire/-EstateOS/actions/runs/30505401418`
+## Remaining Issues
 
-| Check | Verified result |
-|---|---|
-| Clean frontend install, test, and production build | Pass |
-| Frontend component tests | 3 passed |
-| Clean backend install and TypeScript build | Pass |
-| Prisma generation and PostgreSQL migrations | Pass |
-| Backend tests with PostgreSQL | 91 passed |
-| Backend statement coverage | 84.74% |
-| Backend branch coverage | 70.13% |
-| Backend function coverage | 91.03% |
-| Backend line coverage | 87.56% |
-| Production dependency audit | 0 known vulnerabilities |
-| Frontend and API production image builds | Pass |
-| Docker production stack health | Pass |
-| Admin login/workspace | Pass |
-| Manager login/workspace | Pass |
-| Owner login/workspace | Pass |
-| Tenant login/workspace | Pass |
-| Maintenance login/workspace | Pass |
-| Tenant maintenance-request workflow | Pass |
+These deployment-environment items remain and account for the final 4%:
 
-## Bugs Found and Resolved
-
-- Backend lockfile was incompatible with the npm version used by GitHub
-  Actions. The lockfile was regenerated and clean installation now passes.
-- Backend coverage initially missed the release threshold. Meaningful
-  authentication, authorization, scheduler, storage, Redis, malware-scanning,
-  file-access, and lease-lifecycle tests raised every enforced metric above its
-  threshold.
-- Audit persistence failure responses retained the original content length,
-  which could produce malformed HTTP framing. The middleware now recalculates
-  response headers and the regression test passes.
-- The production seed workflow called development-only `tsx`. It now runs the
-  compiled seed artifact included in the production image.
-- The expanded PostgreSQL workflow exceeded the default test timeout under
-  coverage instrumentation. Its scoped timeout now reflects the real workflow
-  duration without weakening other tests.
-
-No unresolved repository-controlled release-blocking bug is known.
-
-## Remaining Production Tasks
-
-These tasks require the real hosting environment and are why readiness remains
-below 100%:
-
-1. Store PostgreSQL, Redis, JWT, seed, and third-party credentials in the
-   deployment platform's managed secret store and rotate the CI examples.
-2. Terminate TLS at the production ingress, verify proxy headers, and run an
-   external security/penetration assessment against the deployed hostname.
+1. Put PostgreSQL, Redis, JWT, seed, and third-party credentials in the hosting
+   platform's managed secret store and rotate values before launch.
+2. Terminate TLS at the production ingress, verify proxy headers, and complete
+   an external penetration test against the deployed hostname.
 3. Configure centralized logs, metrics, traces, uptime checks, SLOs, and alert
    routing.
-4. Run and document a backup restoration drill against the production database
+4. Run and document a backup restoration drill using the production database
    service.
 5. Run representative large-portfolio load tests and review PostgreSQL query
    plans, connection-pool limits, and upload concurrency.
-6. Add container vulnerability/signature scanning and a promotion policy for
-   immutable release images.
+6. Add container vulnerability/signature scanning and an immutable-image
+   promotion policy.
 
-## Security Concerns
+## Security and Performance Position
 
-No critical dependency advisory or known critical application vulnerability is
-open. Implemented controls include short-lived access tokens, refresh rotation
-and revocation, distributed rate limiting, durable audit gating, malware
-scanning, checksums, role scoping, defensive headers, validation, non-root
-containers, and explicit production secret requirements.
+No known critical application vulnerability or production dependency advisory
+is open. Implemented controls include refresh rotation and revocation,
+distributed rate limiting, durable audit gating, malware scanning, checksums,
+role scoping, validation, defensive headers, non-root containers, and explicit
+production secret requirements. Residual security risk is deployment-specific.
 
-Residual risk is deployment-specific: secret-store integration, final TLS
-configuration, runtime penetration testing, and continuous image scanning still
-require evidence.
-
-## Performance Concerns
-
-High-volume collections are paginated, dashboards use database aggregation,
-Owner financial queries are period-scoped, scheduled execution is
-replica-locked, and migrations are separated from API startup.
-
-Large-portfolio load characteristics, production database query plans,
-connection-pool sizing, and concurrent upload behavior have not yet been
-measured under representative traffic.
-
-## Technical Debt and Known Limitations
-
-- The frontend remains a large role-aware application module and should be
-  separated into feature modules as it grows.
-- Local file storage is suitable for a single deployment volume but should move
-  to encrypted object storage for horizontal scale.
-- Scheduled work uses a leader lock but not a durable retry/dead-letter queue.
-- GitHub currently reports a non-blocking warning that some third-party action
-  versions target the older Node action runtime.
-- The current Playwright suite proves authentication for all five roles and a
-  Tenant write workflow; deeper browser journeys should continue expanding in
-  v1.1 even though database integration tests cover the other core mutations.
+Collections are paginated, dashboards use database aggregation, Owner financial
+queries are period-scoped, scheduled execution is replica-locked, and database
+migrations are separated from API startup. Production-scale query plans,
+connection-pool sizing, and concurrent upload behavior still need measurement
+under representative traffic.
 
 ## Recommended v1.1 Improvements
 
 - Move file storage to encrypted object storage with signed URLs and retention
   policies.
-- Add a managed job queue with retries and dead-letter handling.
+- Add a durable job queue with retries and dead-letter handling.
 - Add payment-provider reconciliation and webhook idempotency.
 - Add electronic lease signatures and inspection workflows.
-- Add centralized OpenTelemetry traces, SLO dashboards, and alert routing.
 - Generate a typed frontend client from the OpenAPI specification.
 - Split the frontend into role-oriented feature modules.
-- Expand browser automation for lease renewal, Owner reporting, Manager
-  reconciliation, and Maintenance completion flows.
+- Expand browser coverage for lease renewal, Owner reporting, Manager
+  reconciliation, and Maintenance completion.
 
 ## Final Position
 
 EstateOS is **96% complete and verified as a deployable release candidate**.
-All repository-controlled audit gates pass. It must not be labeled 100% until
-the deployment-environment security, observability, restore, and production-load
-evidence listed above is completed or formally accepted by the release owner.
+Every repository-controlled audit gate passes. It must not be labeled 100%
+until the six environment-dependent items above are completed or explicitly
+accepted by the release owner with documented risk ownership.
