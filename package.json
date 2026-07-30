@@ -1,11 +1,21 @@
 {
   "name": "estateos",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.0-rc.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "dev:api": "npm --prefix server run dev",
+    "build": "npm run build:client && npm run build:api",
+    "build:client": "tsc -b && vite build",
+    "build:api": "npm --prefix server run build",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc -b --pretty false && npm --prefix server run typecheck",
+    "test": "npm --prefix server test",
+    "test:frontend": "vitest run --config vitest.frontend.config.ts",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test && npm run test:frontend",
+    "verify": "npm run lint && npm run typecheck && npm run test:all && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -14,10 +24,22 @@
     "react-dom": "latest"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.55.1",
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "latest",
+    "eslint": "^10.8.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.8.0",
+    "jsdom": "^26.1.0",
     "typescript": "latest",
-    "vite": "latest"
+    "typescript-eslint": "^8.65.0",
+    "vite": "latest",
+    "vitest": "^4.1.10"
   }
 }

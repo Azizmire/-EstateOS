@@ -1,11 +1,12 @@
 import { Router } from 'express';
-import { UnitStatus } from '@prisma/client';
+import { UnitStatus, UserRole } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { paginationResult, parsePagination } from '../utils/pagination.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requireRole(UserRole.ADMIN, UserRole.MANAGER));
 
 const propertySchema = z.object({
   name: z.string().trim().min(2).max(120),
@@ -15,6 +16,9 @@ const propertySchema = z.object({
   state: z.string().trim().min(2).max(50),
   postalCode: z.string().trim().min(3).max(20),
   description: z.string().trim().max(2000).optional().nullable(),
+});
+const propertyCreateSchema = propertySchema.extend({
+  unitCount: z.coerce.number().int().min(0).max(500).optional().default(0),
 });
 
 const unitSchema = z.object({
@@ -29,7 +33,9 @@ const unitSchema = z.object({
 router.get('/', async (req, res, next) => {
   try {
     const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const { page, pageSize, skip, take } = parsePagination(req.query);
     const properties = await prisma.property.findMany({
+      skip, take,
       where: query
         ? {
             OR: [
@@ -46,7 +52,7 @@ router.get('/', async (req, res, next) => {
       orderBy: { createdAt: 'desc' },
     });
 
-    res.json({ properties });
+    res.json({ properties, pagination: paginationResult(properties.length, page, pageSize) });
   } catch (error) {
     next(error);
   }
@@ -79,8 +85,25 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const input = propertySchema.parse(req.body);
-    const property = await prisma.property.create({ data: input });
+    const input = propertyCreateSchema.parse(req.body);
+    const { unitCount, ...propertyInput } = input;
+    const property = await prisma.property.create({
+      data: {
+        ...propertyInput,
+        units: unitCount
+          ? {
+              create: Array.from({ length: unitCount }, (_, index) => ({
+                number: String(index + 1),
+                bedrooms: 0,
+                bathrooms: 0,
+                marketRent: 0,
+                status: UnitStatus.VACANT,
+              })),
+            }
+          : undefined,
+      },
+      include: { units: { orderBy: { number: 'asc' } } },
+    });
     res.status(201).json({ property });
   } catch (error) {
     next(error);

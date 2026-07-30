@@ -9,10 +9,3 @@ export interface StoredFileMetadata {
   height?: number;
   uploadedAt: Date;
 }
-
-export interface ImageVariant {
-  type: 'original' | 'thumbnail';
-  key: string;
-  width: number;
-  height: number;
-}

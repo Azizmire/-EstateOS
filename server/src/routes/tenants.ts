@@ -1,10 +1,12 @@
+import { UserRole } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { paginationResult, parsePagination } from '../utils/pagination.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requireRole(UserRole.ADMIN, UserRole.MANAGER));
 
 const tenantSchema = z.object({
   firstName: z.string().trim().min(1).max(80),
@@ -18,8 +20,10 @@ const tenantSchema = z.object({
 
 router.get('/', async (req, res, next) => {
   try {
+    const { page, pageSize, skip, take } = parsePagination(req.query);
     const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const tenants = await prisma.tenant.findMany({
+      skip, take,
       where: query
         ? {
             OR: [
@@ -44,7 +48,7 @@ router.get('/', async (req, res, next) => {
       orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
 
-    res.json({ tenants });
+    res.json({ tenants, pagination: paginationResult(tenants.length, page, pageSize) });
   } catch (error) {
     next(error);
   }

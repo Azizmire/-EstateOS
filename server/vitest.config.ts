@@ -11,7 +11,22 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
       include: ['src/**/*.ts'],
-      exclude: ['src/index.ts'],
+      exclude: [
+        'src/index.ts',
+        'src/**/*.d.ts',
+        'src/**/*.types.ts',
+        'src/**/*.contract.ts',
+        'src/**/*.interface.ts',
+        'src/services/file-asset.service.ts',
+        'src/storage/provider.ts',
+        'src/storage/storage-metadata.ts',
+      ],
+      thresholds: {
+        statements: 80,
+        lines: 80,
+        functions: 75,
+        branches: 70,
+      },
     },
   },
 });

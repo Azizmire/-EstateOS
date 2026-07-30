@@ -1,0 +1,15 @@
+node_modules
+server/node_modules
+dist
+server/dist
+.npm-cache
+server/.npm-cache
+.env
+.env.*
+!.env.example
+!.env.production.example
+outputs
+coverage
+server/coverage
+server/uploads
+*.log

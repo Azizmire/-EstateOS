@@ -1,0 +1,103 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD}"]
+    volumes:
+      - estateos_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  clamav:
+    image: clamav/clamav:1.4
+    restart: unless-stopped
+    volumes:
+      - estateos_clamav:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+      start_period: 60s
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-estateos}
+      POSTGRES_USER: ${POSTGRES_USER:-estateos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - estateos_postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-estateos} -d ${POSTGRES_DB:-estateos}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  migrate:
+    build: ./server
+    restart: "no"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-estateos}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-estateos}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      CLIENT_ORIGIN: ${PUBLIC_URL:?Set PUBLIC_URL}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      CLAMAV_HOST: clamav
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["npx", "prisma", "migrate", "deploy"]
+
+  api:
+    build: ./server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-estateos}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-estateos}?schema=public
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      CLIENT_ORIGIN: ${PUBLIC_URL:?Set PUBLIC_URL}
+      UPLOAD_DIR: /app/uploads
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      CLAMAV_HOST: clamav
+      CLAMAV_PORT: 3310
+    volumes:
+      - estateos_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clamav:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["node", "dist/src/index.js"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/api/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      args:
+        VITE_API_URL: /api
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  estateos_postgres:
+  estateos_uploads:
+  estateos_redis:
+  estateos_clamav:

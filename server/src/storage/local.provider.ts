@@ -3,10 +3,18 @@ import path from 'node:path';
 import { StorageProvider, PutObjectInput, StorageObject } from './provider.js';
 
 export class LocalStorageProvider implements StorageProvider {
-  constructor(private readonly root = path.resolve('uploads')) {}
+  private readonly root: string;
+
+  constructor(root = path.resolve('uploads')) {
+    this.root = path.resolve(root);
+  }
 
   private resolve(key: string) {
-    return path.join(this.root, key);
+    const target = path.resolve(this.root, key);
+    if (target !== this.root && !target.startsWith(`${this.root}${path.sep}`)) {
+      throw new Error('Invalid storage key');
+    }
+    return target;
   }
 
   async putObject(input: PutObjectInput): Promise<StorageObject> {
