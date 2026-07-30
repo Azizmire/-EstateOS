@@ -10,6 +10,18 @@ EstateOS is a full-stack property operations platform for managers, residents,
 maintenance teams, and property owners—built around real workflows, strict
 authorization, durable data, and deployment-ready infrastructure.
 
+<br />
+
+<picture>
+  <img
+    src="docs/assets/estateos-hero.png"
+    alt="EstateOS enterprise property portfolio with secure operational dashboards"
+    width="100%"
+  />
+</picture>
+
+<br />
+
 [![Version](https://img.shields.io/badge/version-1.0.0--rc.1-7c3aed?style=for-the-badge)](RELEASE_NOTES.md)
 [![Release](https://img.shields.io/badge/release-candidate-f59e0b?style=for-the-badge)](https://github.com/Azizmire/-EstateOS/releases/tag/v1.0.0-rc.1)
 [![EstateOS CI](https://img.shields.io/github/actions/workflow/status/Azizmire/-EstateOS/ci.yml?branch=main&style=for-the-badge&label=EstateOS%20CI)](https://github.com/Azizmire/-EstateOS/actions/workflows/ci.yml)
