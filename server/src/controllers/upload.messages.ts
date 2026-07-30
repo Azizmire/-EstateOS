@@ -1,1 +1,0 @@
-export const UploadMessages={UPLOAD_SUCCESS:'File uploaded successfully.',PROPERTY_IMAGE_SUCCESS:'Property image uploaded successfully.',LEASE_DOCUMENT_SUCCESS:'Lease document uploaded successfully.',MAINTENANCE_ATTACHMENT_SUCCESS:'Maintenance attachment uploaded successfully.',UPLOAD_FAILED:'File upload failed.'} as const;

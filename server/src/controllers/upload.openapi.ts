@@ -1,1 +1,0 @@
-export const UploadOpenApi={tag:'Uploads',propertyImageSummary:'Upload a property image',leaseDocumentSummary:'Upload a lease document',maintenanceAttachmentSummary:'Upload a maintenance attachment'} as const;
