@@ -128,6 +128,18 @@ describe('file routes', () => {
     expect((await request(createApp()).get('/files/file-1').set('Authorization', `Bearer ${token(UserRole.MAINTENANCE)}`)).status).toBe(403);
   });
 
+  it('rejects unlinked tenant and owner access paths', async () => {
+    database.fileFindUnique.mockResolvedValue({ ...file, propertyImage: { propertyId: 'property-1' } });
+    database.leaseCount.mockResolvedValueOnce(0);
+    expect((await request(createApp()).get('/files/file-1').set('Authorization', `Bearer ${token(UserRole.TENANT)}`)).status).toBe(403);
+
+    database.tenantFindUnique.mockResolvedValueOnce(null);
+    expect((await request(createApp()).get('/files/file-1').set('Authorization', `Bearer ${token(UserRole.TENANT)}`)).status).toBe(403);
+
+    database.ownerFindUnique.mockResolvedValueOnce(null);
+    expect((await request(createApp()).get('/files/file-1').set('Authorization', `Bearer ${token(UserRole.OWNER)}`)).status).toBe(403);
+  });
+
   it('deletes stored files and their database records', async () => {
     const response = await request(createApp())
       .delete('/files/file-1')
@@ -135,5 +147,14 @@ describe('file routes', () => {
     expect(response.status).toBe(204);
     expect(storage.deleteObject).toHaveBeenCalledWith(file.key);
     expect(database.fileDelete).toHaveBeenCalledWith({ where: { id: file.id } });
+  });
+
+  it('returns not found when deleting a missing file', async () => {
+    database.fileFindUnique.mockResolvedValueOnce(null);
+    const response = await request(createApp())
+      .delete('/files/missing')
+      .set('Authorization', `Bearer ${token(UserRole.ADMIN)}`);
+    expect(response.status).toBe(404);
+    expect(storage.deleteObject).not.toHaveBeenCalled();
   });
 });
