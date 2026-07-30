@@ -16,6 +16,20 @@ function createApp(record: AuditService['record']) {
   return app;
 }
 
+function createFailureApp(record: AuditService['record'], withUser = true) {
+  const app = express();
+  app.use(createAuditMiddleware({ record }));
+  if (withUser) {
+    app.use((req, _res, next) => {
+      req.user = { id: 'manager-1', role: 'MANAGER' };
+      next();
+    });
+  }
+  app.post('/api/properties', (_req, res) => res.status(201).json({ id: 'property-1' }));
+  app.delete('/api/properties/:id', (_req, res) => res.status(500).json({ message: 'failed' }));
+  return app;
+}
+
 describe('audit middleware', () => {
   it('records successful mutating requests after authorization', async () => {
     const record = vi.fn().mockResolvedValue(undefined);
@@ -36,5 +50,20 @@ describe('audit middleware', () => {
     const record = vi.fn().mockResolvedValue(undefined);
     await request(createApp(record)).get('/api/properties');
     expect(record).not.toHaveBeenCalled();
+  });
+
+  it('does not audit unauthenticated or failed server requests', async () => {
+    const record = vi.fn().mockResolvedValue(undefined);
+    expect((await request(createFailureApp(record, false)).post('/api/properties')).status).toBe(201);
+    expect((await request(createFailureApp(record)).delete('/api/properties/property-1')).status).toBe(500);
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('returns a durable-audit warning when persistence fails', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const record = vi.fn().mockRejectedValue(new Error('audit database unavailable'));
+    const response = await request(createFailureApp(record)).post('/api/properties');
+    expect(response.status).toBe(503);
+    expect(response.body.message).toContain('audit record could not be persisted');
   });
 });

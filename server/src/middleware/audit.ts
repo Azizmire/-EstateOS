@@ -32,8 +32,12 @@ export function createAuditMiddleware(auditService: AuditService) {
         console.error('Failed to persist audit event', error);
         if (!res.headersSent) {
           res.statusCode = 503;
+          res.removeHeader('content-length');
+          res.removeHeader('etag');
           res.setHeader('content-type', 'application/json; charset=utf-8');
-          originalEnd(JSON.stringify({ message: 'The operation completed but its audit record could not be persisted. Verify state before retrying.' }));
+          const body = JSON.stringify({ message: 'The operation completed but its audit record could not be persisted. Verify state before retrying.' });
+          res.setHeader('content-length', String(Buffer.byteLength(body)));
+          originalEnd(body);
         } else {
           originalEnd(chunk as never, encoding as never, callback);
         }
