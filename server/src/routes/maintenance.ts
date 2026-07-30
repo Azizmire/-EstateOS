@@ -1,15 +1,29 @@
 import {
   MaintenancePriority,
   MaintenanceStatus,
+  NotificationType,
   UserRole,
 } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { paginationResult, parsePagination } from '../utils/pagination.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(
+  requireAuth,
+  requireRole(UserRole.ADMIN, UserRole.MANAGER, UserRole.MAINTENANCE),
+);
+const ASSIGNABLE_ROLES: readonly UserRole[] = [
+  UserRole.MAINTENANCE,
+  UserRole.ADMIN,
+  UserRole.MANAGER,
+];
+const DELETABLE_STATUSES: readonly MaintenanceStatus[] = [
+  MaintenanceStatus.NEW,
+  MaintenanceStatus.CANCELLED,
+];
 
 const maintenanceSchema = z.object({
   propertyId: z.string().cuid(),
@@ -40,6 +54,30 @@ const maintenanceInclude = {
   updates: { orderBy: { createdAt: 'desc' as const } },
 };
 
+async function notifyAssignedTechnician(request: {
+  id: string;
+  title: string;
+  status: MaintenanceStatus;
+  assignedTechnicianId: string | null;
+}) {
+  if (!request.assignedTechnicianId) return;
+  const dedupeKey =
+    `maintenance:${request.id}:${request.status}:${request.assignedTechnicianId}`;
+  await prisma.notification.upsert({
+    where: { dedupeKey },
+    create: {
+      userId: request.assignedTechnicianId,
+      type: NotificationType.MAINTENANCE_UPDATE,
+      title: 'Maintenance request updated',
+      message: `${request.title} is now ${request.status.toLowerCase().replaceAll('_', ' ')}.`,
+      entityType: 'maintenance',
+      entityId: request.id,
+      dedupeKey,
+    },
+    update: { readAt: null, createdAt: new Date() },
+  });
+}
+
 async function validateRelations(input: {
   propertyId: string;
   unitId?: string | null;
@@ -65,7 +103,7 @@ async function validateRelations(input: {
   if (input.assignedTechnicianId) {
     const technician = await prisma.user.findUnique({ where: { id: input.assignedTechnicianId } });
     if (!technician) throw Object.assign(new Error('Assigned technician not found'), { statusCode: 404 });
-    if (![UserRole.MAINTENANCE, UserRole.ADMIN, UserRole.MANAGER].includes(technician.role)) {
+    if (!ASSIGNABLE_ROLES.includes(technician.role)) {
       throw Object.assign(new Error('Selected user cannot be assigned maintenance work'), { statusCode: 400 });
     }
   }
@@ -73,6 +111,7 @@ async function validateRelations(input: {
 
 router.get('/', async (req, res, next) => {
   try {
+    const { page, pageSize, skip, take } = parsePagination(req.query);
     const status = typeof req.query.status === 'string'
       ? z.nativeEnum(MaintenanceStatus).parse(req.query.status)
       : undefined;
@@ -85,12 +124,13 @@ router.get('/', async (req, res, next) => {
       : undefined;
 
     const requests = await prisma.maintenanceRequest.findMany({
+      skip, take,
       where: { status, priority, propertyId, assignedTechnicianId },
       include: maintenanceInclude,
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
     });
 
-    res.json({ requests });
+    res.json({ requests, pagination: paginationResult(requests.length, page, pageSize) });
   } catch (error) {
     next(error);
   }
@@ -155,6 +195,7 @@ router.post('/', async (req, res, next) => {
       include: maintenanceInclude,
     });
 
+    await notifyAssignedTechnician(request);
     res.status(201).json({ request });
   } catch (error) {
     next(error);
@@ -188,6 +229,7 @@ router.patch('/:id', async (req, res, next) => {
       include: maintenanceInclude,
     });
 
+    await notifyAssignedTechnician(request);
     res.json({ request });
   } catch (error) {
     next(error);
@@ -228,28 +270,34 @@ router.post('/:id/updates', async (req, res, next) => {
       });
     });
 
+    await notifyAssignedTechnician(request);
     res.status(201).json({ request });
   } catch (error) {
     next(error);
   }
 });
 
-router.delete('/:id', async (req, res, next) => {
-  try {
-    const request = await prisma.maintenanceRequest.findUnique({ where: { id: req.params.id } });
-    if (!request) return res.status(404).json({ message: 'Maintenance request not found' });
+router.delete(
+  '/:id',
+  requireRole(UserRole.ADMIN, UserRole.MANAGER),
+  async (req, res, next) => {
+    try {
+      const id = String(req.params.id);
+      const request = await prisma.maintenanceRequest.findUnique({ where: { id } });
+      if (!request) return res.status(404).json({ message: 'Maintenance request not found' });
 
-    if (![MaintenanceStatus.NEW, MaintenanceStatus.CANCELLED].includes(request.status)) {
-      return res.status(409).json({
-        message: 'Only new or cancelled maintenance requests can be deleted',
-      });
+      if (!DELETABLE_STATUSES.includes(request.status)) {
+        return res.status(409).json({
+          message: 'Only new or cancelled maintenance requests can be deleted',
+        });
+      }
+
+      await prisma.maintenanceRequest.delete({ where: { id: request.id } });
+      res.status(204).send();
+    } catch (error) {
+      next(error);
     }
-
-    await prisma.maintenanceRequest.delete({ where: { id: request.id } });
-    res.status(204).send();
-  } catch (error) {
-    next(error);
-  }
-});
+  },
+);
 
 export default router;

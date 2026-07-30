@@ -1,4 +1,4 @@
-import type { UploadedFileResponse } from './upload.responses';
+import type { UploadedFileResponse } from './upload.responses.js';
 
 export abstract class BaseUploadController {
   protected success(response: UploadedFileResponse) {

@@ -1,13 +1,18 @@
-import { LeaseStatus, UnitStatus } from '@prisma/client';
+import { LeaseStatus, UnitStatus, UserRole } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { paginationResult, parsePagination } from '../utils/pagination.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requireRole(UserRole.ADMIN, UserRole.MANAGER));
 
 const dateSchema = z.coerce.date();
+const OCCUPYING_LEASE_STATUSES: readonly LeaseStatus[] = [
+  LeaseStatus.ACTIVE,
+  LeaseStatus.EXPIRING,
+];
 
 const leaseSchema = z
   .object({
@@ -47,6 +52,24 @@ const updateLeaseSchema = z
     { message: 'Primary tenant must be included in tenantIds', path: ['primaryTenantId'] },
   );
 
+const renewalSchema = z.object({
+  startDate: dateSchema,
+  endDate: dateSchema,
+  monthlyRent: z.coerce.number().positive(),
+  securityDeposit: z.coerce.number().nonnegative().optional(),
+  activate: z.boolean().default(false),
+  notes: z.string().trim().max(3000).optional().nullable(),
+}).refine((value) => value.endDate > value.startDate, {
+  message: 'Renewal end date must be after the start date',
+  path: ['endDate'],
+});
+
+const moveOutSchema = z.object({
+  endDate: dateSchema.default(() => new Date()),
+  reason: z.string().trim().min(3).max(1000),
+  terminated: z.boolean().default(false),
+});
+
 const leaseInclude = {
   unit: { include: { property: true } },
   tenants: { include: { tenant: true }, orderBy: { primary: 'desc' as const } },
@@ -55,16 +78,18 @@ const leaseInclude = {
 
 router.get('/', async (req, res, next) => {
   try {
+    const { page, pageSize, skip, take } = parsePagination(req.query);
     const status = typeof req.query.status === 'string' ? req.query.status : undefined;
     const parsedStatus = status ? z.nativeEnum(LeaseStatus).parse(status) : undefined;
 
     const leases = await prisma.lease.findMany({
+      skip, take,
       where: parsedStatus ? { status: parsedStatus } : undefined,
       include: leaseInclude,
       orderBy: { startDate: 'desc' },
     });
 
-    res.json({ leases });
+    res.json({ leases, pagination: paginationResult(leases.length, page, pageSize) });
   } catch (error) {
     next(error);
   }
@@ -131,7 +156,7 @@ router.post('/', async (req, res, next) => {
         include: leaseInclude,
       });
 
-      if ([LeaseStatus.ACTIVE, LeaseStatus.EXPIRING].includes(created.status)) {
+      if (OCCUPYING_LEASE_STATUSES.includes(created.status)) {
         await tx.unit.update({ where: { id: input.unitId }, data: { status: UnitStatus.OCCUPIED } });
       }
 
@@ -199,7 +224,7 @@ router.patch('/:id', async (req, res, next) => {
         include: leaseInclude,
       });
 
-      const isOccupying = [LeaseStatus.ACTIVE, LeaseStatus.EXPIRING].includes(updated.status);
+      const isOccupying = OCCUPYING_LEASE_STATUSES.includes(updated.status);
       await tx.unit.update({
         where: { id: updated.unitId },
         data: { status: isOccupying ? UnitStatus.OCCUPIED : UnitStatus.VACANT },
@@ -228,12 +253,133 @@ router.patch('/:id', async (req, res, next) => {
   }
 });
 
+router.post('/:id/activate', async (req, res, next) => {
+  try {
+    const lease = await prisma.$transaction(async (tx) => {
+      const current = await tx.lease.findUnique({ where: { id: req.params.id } });
+      if (!current) throw Object.assign(new Error('Lease not found'), { statusCode: 404 });
+      if (current.status !== LeaseStatus.DRAFT) {
+        throw Object.assign(new Error('Only draft leases can be activated'), { statusCode: 409 });
+      }
+      const overlap = await tx.lease.findFirst({
+        where: {
+          id: { not: current.id },
+          unitId: current.unitId,
+          status: { in: [LeaseStatus.ACTIVE, LeaseStatus.EXPIRING] },
+          startDate: { lte: current.endDate },
+          endDate: { gte: current.startDate },
+        },
+      });
+      if (overlap) throw Object.assign(new Error('Unit already has an overlapping active lease'), { statusCode: 409 });
+
+      const activated = await tx.lease.update({
+        where: { id: current.id },
+        data: { status: LeaseStatus.ACTIVE },
+        include: leaseInclude,
+      });
+      await tx.unit.update({ where: { id: current.unitId }, data: { status: UnitStatus.OCCUPIED } });
+      return activated;
+    });
+    res.json({ lease });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/renew', async (req, res, next) => {
+  try {
+    const input = renewalSchema.parse(req.body);
+    const lease = await prisma.$transaction(async (tx) => {
+      const current = await tx.lease.findUnique({
+        where: { id: req.params.id },
+        include: { tenants: true },
+      });
+      if (!current) throw Object.assign(new Error('Lease not found'), { statusCode: 404 });
+      const renewableStatuses: readonly LeaseStatus[] = [
+        LeaseStatus.ACTIVE,
+        LeaseStatus.EXPIRING,
+        LeaseStatus.ENDED,
+      ];
+      if (!renewableStatuses.includes(current.status)) {
+        throw Object.assign(new Error('This lease is not eligible for renewal'), { statusCode: 409 });
+      }
+      if (input.startDate < current.endDate) {
+        throw Object.assign(new Error('Renewal cannot begin before the current lease ends'), { statusCode: 409 });
+      }
+
+      const renewed = await tx.lease.create({
+        data: {
+          unitId: current.unitId,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          monthlyRent: input.monthlyRent,
+          securityDeposit: input.securityDeposit ?? Number(current.securityDeposit),
+          status: input.activate ? LeaseStatus.ACTIVE : LeaseStatus.DRAFT,
+          notes: input.notes ?? `Renewal of lease ${current.id}`,
+          tenants: {
+            create: current.tenants.map((tenant) => ({
+              tenantId: tenant.tenantId,
+              primary: tenant.primary,
+            })),
+          },
+        },
+        include: leaseInclude,
+      });
+      await tx.lease.update({
+        where: { id: current.id },
+        data: { status: LeaseStatus.EXPIRING },
+      });
+      return renewed;
+    });
+    res.status(201).json({ lease });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/move-out', async (req, res, next) => {
+  try {
+    const input = moveOutSchema.parse(req.body);
+    const lease = await prisma.$transaction(async (tx) => {
+      const current = await tx.lease.findUnique({ where: { id: req.params.id } });
+      if (!current) throw Object.assign(new Error('Lease not found'), { statusCode: 404 });
+      if (!OCCUPYING_LEASE_STATUSES.includes(current.status)) {
+        throw Object.assign(new Error('Only active leases can be moved out'), { statusCode: 409 });
+      }
+
+      const movedOut = await tx.lease.update({
+        where: { id: current.id },
+        data: {
+          endDate: input.endDate,
+          status: input.terminated ? LeaseStatus.TERMINATED : LeaseStatus.ENDED,
+          notes: [current.notes, `Move-out: ${input.reason}`].filter(Boolean).join('\n'),
+        },
+        include: leaseInclude,
+      });
+      const otherLease = await tx.lease.findFirst({
+        where: {
+          id: { not: current.id },
+          unitId: current.unitId,
+          status: { in: [LeaseStatus.ACTIVE, LeaseStatus.EXPIRING] },
+        },
+      });
+      if (!otherLease) {
+        await tx.unit.update({ where: { id: current.unitId }, data: { status: UnitStatus.VACANT } });
+      }
+      return movedOut;
+    });
+    res.json({ lease });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.delete('/:id', async (req, res, next) => {
   try {
     await prisma.$transaction(async (tx) => {
       const lease = await tx.lease.findUnique({ where: { id: req.params.id } });
       if (!lease) throw Object.assign(new Error('Lease not found'), { statusCode: 404 });
-      if ([LeaseStatus.ACTIVE, LeaseStatus.EXPIRING].includes(lease.status)) {
+      if (OCCUPYING_LEASE_STATUSES.includes(lease.status)) {
         throw Object.assign(new Error('Active leases must be ended or terminated before deletion'), { statusCode: 409 });
       }
 

@@ -1,11 +1,12 @@
-import { PaymentStatus, PaymentType } from '@prisma/client';
+import { PaymentStatus, PaymentType, UserRole } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
+import { paginationResult, parsePagination } from '../utils/pagination.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requireRole(UserRole.ADMIN, UserRole.MANAGER));
 
 const paymentSchema = z.object({
   tenantId: z.string().cuid(),
@@ -33,6 +34,7 @@ const paymentInclude = {
 
 router.get('/', async (req, res, next) => {
   try {
+    const { page, pageSize, skip, take } = parsePagination(req.query);
     const status = typeof req.query.status === 'string'
       ? z.nativeEnum(PaymentStatus).parse(req.query.status)
       : undefined;
@@ -43,12 +45,13 @@ router.get('/', async (req, res, next) => {
     const leaseId = typeof req.query.leaseId === 'string' ? req.query.leaseId : undefined;
 
     const payments = await prisma.payment.findMany({
+      skip, take,
       where: { status, type, tenantId, leaseId },
       include: paymentInclude,
       orderBy: [{ dueDate: 'desc' }, { createdAt: 'desc' }],
     });
 
-    res.json({ payments });
+    res.json({ payments, pagination: paginationResult(payments.length, page, pageSize) });
   } catch (error) {
     next(error);
   }

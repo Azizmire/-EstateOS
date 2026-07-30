@@ -1,0 +1,116 @@
+name: EstateOS CI
+
+on:
+  push:
+    branches: ['main', 'agent/**']
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: estateos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:frontend
+      - run: npm run build:client
+
+  api:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: estateos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d estateos_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: server
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/estateos_test?schema=public
+      JWT_SECRET: estateos-ci-secret-that-is-at-least-32-characters-long
+      CLIENT_ORIGIN: http://localhost:5173
+      RUN_DATABASE_TESTS: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm run prisma:generate
+      - run: npx prisma migrate deploy
+      - run: npm run build
+      - run: npm test
+      - run: npm run test:coverage
+
+  containers:
+    runs-on: ubuntu-latest
+    needs: [frontend, api]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: estateos-web:ci
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./server
+          push: false
+          tags: estateos-api:ci
+
+  production-stack:
+    runs-on: ubuntu-latest
+    needs: [frontend, api]
+    env:
+      POSTGRES_PASSWORD: estateos-ci-database-password
+      REDIS_PASSWORD: estateos-ci-redis-password
+      JWT_SECRET: estateos-ci-secret-that-is-at-least-32-characters-long
+      PUBLIC_URL: http://127.0.0.1:8080
+      ADMIN_SEED_EMAIL: admin@estateos.test
+      ADMIN_SEED_PASSWORD: EstateOS-CI-Admin-Password!
+      DEMO_SEED_PASSWORD: EstateOS-CI-Role-Password!
+      ESTATEOS_E2E_URL: http://127.0.0.1:8080
+      ESTATEOS_ADMIN: admin@estateos.test:EstateOS-CI-Admin-Password!
+      ESTATEOS_MANAGER: manager@estateos.demo:EstateOS-CI-Role-Password!
+      ESTATEOS_OWNER: owner@estateos.demo:EstateOS-CI-Role-Password!
+      ESTATEOS_TENANT: tenant@estateos.demo:EstateOS-CI-Role-Password!
+      ESTATEOS_MAINTENANCE: maintenance@estateos.demo:EstateOS-CI-Role-Password!
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: docker compose -f docker-compose.prod.yml up --build --wait --wait-timeout 300
+      - run: docker compose -f docker-compose.prod.yml exec -T -e ADMIN_SEED_EMAIL -e ADMIN_SEED_PASSWORD -e DEMO_SEED_PASSWORD -e SEED_DEMO_DATA=true api npm run prisma:seed
+      - run: npm run test:e2e
+      - if: always()
+        run: docker compose -f docker-compose.prod.yml ps
+      - if: always()
+        run: docker compose -f docker-compose.prod.yml logs --no-color
+      - if: always()
+        run: docker compose -f docker-compose.prod.yml down -v

@@ -21,6 +21,12 @@ export const openApiDocument = {
     { name: 'Leases' },
     { name: 'Payments' },
     { name: 'Maintenance' },
+    { name: 'Expenses' },
+    { name: 'Notifications' },
+    { name: 'Files' },
+    { name: 'Portals' },
+    { name: 'Reports' },
+    { name: 'Administration' },
   ],
   components: {
     securitySchemes: {
@@ -48,7 +54,7 @@ export const openApiDocument = {
           id: { type: 'string' },
           name: { type: 'string' },
           email: { type: 'string', format: 'email' },
-          role: { type: 'string', example: 'ADMIN' },
+          role: { type: 'string', enum: ['ADMIN', 'MANAGER', 'MAINTENANCE', 'TENANT', 'OWNER'] },
         },
       },
       Property: {
@@ -56,10 +62,12 @@ export const openApiDocument = {
         properties: {
           id: { type: 'string' },
           name: { type: 'string' },
-          address: { type: 'string' },
+          address1: { type: 'string' },
+          address2: { type: 'string', nullable: true },
           city: { type: 'string' },
           state: { type: 'string' },
-          zipCode: { type: 'string' },
+          postalCode: { type: 'string' },
+          description: { type: 'string', nullable: true },
           createdAt: { type: 'string', format: 'date-time' },
           updatedAt: { type: 'string', format: 'date-time' },
         },
@@ -83,7 +91,7 @@ export const openApiDocument = {
           endDate: { type: 'string', format: 'date-time' },
           monthlyRent: { type: 'number', format: 'double' },
           securityDeposit: { type: 'number', format: 'double' },
-          status: { type: 'string', example: 'ACTIVE' },
+          status: { type: 'string', enum: ['DRAFT', 'ACTIVE', 'EXPIRING', 'ENDED', 'TERMINATED'] },
         },
       },
       Payment: {
@@ -94,7 +102,7 @@ export const openApiDocument = {
           amount: { type: 'number', format: 'double' },
           dueDate: { type: 'string', format: 'date-time' },
           paidAt: { type: 'string', format: 'date-time', nullable: true },
-          status: { type: 'string', example: 'PENDING' },
+          status: { type: 'string', enum: ['PENDING', 'PAID', 'LATE', 'FAILED', 'REFUNDED'] },
         },
       },
       MaintenanceRequest: {
@@ -105,8 +113,8 @@ export const openApiDocument = {
           unitId: { type: 'string', nullable: true },
           title: { type: 'string' },
           description: { type: 'string' },
-          priority: { type: 'string', example: 'MEDIUM' },
-          status: { type: 'string', example: 'OPEN' },
+          priority: { type: 'string', enum: ['LOW', 'NORMAL', 'HIGH', 'URGENT'] },
+          status: { type: 'string', enum: ['NEW', 'ASSIGNED', 'IN_PROGRESS', 'WAITING_PARTS', 'COMPLETED', 'CANCELLED'] },
           completedAt: { type: 'string', format: 'date-time', nullable: true },
         },
       },
@@ -201,6 +209,30 @@ export const openApiDocument = {
           },
           '401': { description: 'Unauthorized' },
         },
+      },
+    },
+    '/auth/refresh': {
+      post: {
+        tags: ['Authentication'],
+        summary: 'Rotate a refresh session and issue a new access token',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['refreshToken'], properties: { refreshToken: { type: 'string', minLength: 32 } } } } } },
+        responses: { '200': { description: 'Session rotated' }, '401': { description: 'Refresh session invalid or expired' } },
+      },
+    },
+    '/auth/logout': {
+      post: {
+        tags: ['Authentication'],
+        summary: 'Revoke a refresh session',
+        requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['refreshToken'], properties: { refreshToken: { type: 'string' } } } } } },
+        responses: { '204': { description: 'Session revoked' } },
+      },
+    },
+    '/auth/change-password': {
+      post: {
+        tags: ['Authentication'],
+        summary: 'Change password and revoke all refresh sessions',
+        security: [{ bearerAuth: [] }],
+        responses: { '204': { description: 'Password changed and sessions revoked' }, '401': { description: 'Current password invalid' } },
       },
     },
     '/dashboard': {
@@ -326,6 +358,127 @@ export const openApiDocument = {
         summary: 'Get maintenance summary',
         security: [{ bearerAuth: [] }],
         responses: { '200': { description: 'Maintenance summary' } },
+      },
+    },
+    '/leases/{id}/activate': {
+      post: {
+        tags: ['Leases'],
+        summary: 'Activate a draft lease and occupy its unit',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Lease activated' }, '409': { description: 'Unit is unavailable' } },
+      },
+    },
+    '/leases/{id}/renew': {
+      post: {
+        tags: ['Leases'],
+        summary: 'Create a renewal lease',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Renewal created' } },
+      },
+    },
+    '/leases/{id}/move-out': {
+      post: {
+        tags: ['Leases'],
+        summary: 'Complete a move-out and release the unit',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Move-out completed' } },
+      },
+    },
+    '/maintenance/{id}/updates': {
+      post: {
+        tags: ['Maintenance'],
+        summary: 'Add a work-order update and optionally transition status',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Update recorded' } },
+      },
+    },
+    '/portal/tenant': {
+      get: {
+        tags: ['Portals'],
+        summary: 'Get the authenticated tenant’s scoped workspace',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Tenant workspace' }, '404': { description: 'Tenant profile not linked' } },
+      },
+    },
+    '/portal/tenant/maintenance': {
+      post: {
+        tags: ['Portals'],
+        summary: 'Create a maintenance request for the authenticated tenant',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Maintenance request created' }, '403': { description: 'Unit is not attached to the tenant' } },
+      },
+    },
+    '/portal/owner': {
+      get: {
+        tags: ['Portals'],
+        summary: 'Get properties assigned to the authenticated owner',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Owner portfolio and financial performance' } },
+      },
+    },
+    '/reports/financial': {
+      get: {
+        tags: ['Reports'],
+        summary: 'Get monthly financial reporting for a date range',
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          { name: 'from', in: 'query', schema: { type: 'string', format: 'date-time' } },
+          { name: 'to', in: 'query', schema: { type: 'string', format: 'date-time' } },
+        ],
+        responses: { '200': { description: 'Financial report' }, '400': { description: 'Invalid or excessive date range' } },
+      },
+    },
+    '/reports/portfolio': {
+      get: {
+        tags: ['Reports'],
+        summary: 'Get database-aggregated portfolio counts',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Portfolio report' } },
+      },
+    },
+    '/admin/users': {
+      get: {
+        tags: ['Administration'],
+        summary: 'List users and their Tenant/Owner assignments',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'User list' }, '403': { description: 'Administrator role required' } },
+      },
+    },
+    '/admin/users/{id}/access': {
+      patch: {
+        tags: ['Administration'],
+        summary: 'Update role and required Tenant/Owner assignments',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Access updated' }, '400': { description: 'Required assignment missing' }, '409': { description: 'Cannot remove own administrator access' } },
+      },
+    },
+    '/admin/audit': {
+      get: {
+        tags: ['Administration'],
+        summary: 'List durable audit events',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Audit event list' } },
+      },
+    },
+    '/notifications': {
+      get: {
+        tags: ['Notifications'],
+        summary: 'List current-user notifications with pagination',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Notification list' } },
+      },
+    },
+    '/files': {
+      get: {
+        tags: ['Files'],
+        summary: 'List files visible to the current role with pagination',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Authorized file list' } },
       },
     },
   },

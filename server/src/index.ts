@@ -3,6 +3,7 @@ import { app } from './app.js';
 import { env } from './config/env.js';
 import { startPortfolioJobScheduler } from './jobs/scheduler.js';
 import { prisma } from './lib/prisma.js';
+import { connectRedis, disconnectRedis } from './lib/redis.js';
 
 const server = createServer(app);
 
@@ -12,6 +13,7 @@ let shuttingDown = false;
 async function start() {
   try {
     await prisma.$connect();
+    await connectRedis();
     stopScheduler = startPortfolioJobScheduler();
 
     server.listen(env.PORT, () => {
@@ -22,6 +24,7 @@ async function start() {
   } catch (error) {
     stopScheduler?.();
     await prisma.$disconnect();
+    await disconnectRedis();
     console.error('Failed to start EstateOS API', error);
     process.exit(1);
   }
@@ -47,7 +50,7 @@ const shutdown = async (signal: string) => {
         process.exitCode = 1;
       }
 
-      await prisma.$disconnect();
+      await Promise.all([prisma.$disconnect(), disconnectRedis()]);
       console.log('EstateOS API shutdown complete');
     } catch (disconnectError) {
       console.error('Prisma shutdown failed', disconnectError);

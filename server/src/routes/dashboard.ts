@@ -4,13 +4,14 @@ import {
   PaymentStatus,
   PaymentType,
   UnitStatus,
+  UserRole,
 } from '@prisma/client';
 import { Router } from 'express';
 import { prisma } from '../lib/prisma.js';
-import { requireAuth } from '../middleware/auth.js';
+import { requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = Router();
-router.use(requireAuth);
+router.use(requireAuth, requireRole(UserRole.ADMIN, UserRole.MANAGER));
 
 router.get('/', async (_req, res, next) => {
   try {
