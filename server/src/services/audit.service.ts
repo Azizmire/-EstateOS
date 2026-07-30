@@ -1,7 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 
-export type AuditEvent = {
+type AuditEvent = {
   actorId?: string;
   action: string;
   entityType: string;
@@ -15,7 +15,7 @@ export interface AuditService {
   record(event: AuditEvent): Promise<void>;
 }
 
-export class PrismaAuditService implements AuditService {
+class PrismaAuditService implements AuditService {
   async record(event: AuditEvent): Promise<void> {
     await prisma.auditLog.create({
       data: {

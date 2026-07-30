@@ -9,6 +9,7 @@ import {
   UserRole,
 } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { logError, logInfo } from '../src/lib/logger.js';
 
 const prisma = new PrismaClient();
 
@@ -27,38 +28,38 @@ async function main() {
     update: { name, passwordHash: await bcrypt.hash(password, 12), role: UserRole.ADMIN },
     select: { id: true, email: true, role: true },
   });
-  console.log('EstateOS administrator seeded', admin);
+  logInfo('EstateOS administrator seeded', admin);
 
-  if (process.env.SEED_DEMO_DATA !== 'true') return;
+  if (process.env.SEED_TEST_DATA !== 'true') return;
   if (await prisma.property.count()) {
-    console.log('Portfolio data already exists; demo portfolio was not duplicated.');
+    logInfo('Portfolio data already exists; test fixtures were not duplicated');
     return;
   }
 
-  const demoPassword = process.env.DEMO_SEED_PASSWORD;
-  if (!demoPassword || demoPassword.length < 16) {
-    throw new Error('DEMO_SEED_PASSWORD must be explicitly set to at least 16 characters when SEED_DEMO_DATA=true');
+  const testPassword = process.env.TEST_SEED_PASSWORD;
+  if (!testPassword || testPassword.length < 16) {
+    throw new Error('TEST_SEED_PASSWORD must be explicitly set to at least 16 characters when SEED_TEST_DATA=true');
   }
-  const passwordHash = await bcrypt.hash(demoPassword, 12);
+  const passwordHash = await bcrypt.hash(testPassword, 12);
   const [manager, technician, tenantUser, owner] = await Promise.all([
     prisma.user.upsert({
-      where: { email: 'manager@estateos.demo' },
-      create: { name: 'Aziz Mire', email: 'manager@estateos.demo', passwordHash, role: UserRole.MANAGER },
+      where: { email: 'manager@estateos.test' },
+      create: { name: 'Aziz Mire', email: 'manager@estateos.test', passwordHash, role: UserRole.MANAGER },
       update: { passwordHash, role: UserRole.MANAGER },
     }),
     prisma.user.upsert({
-      where: { email: 'maintenance@estateos.demo' },
-      create: { name: 'Noah Williams', email: 'maintenance@estateos.demo', passwordHash, role: UserRole.MAINTENANCE },
+      where: { email: 'maintenance@estateos.test' },
+      create: { name: 'Noah Williams', email: 'maintenance@estateos.test', passwordHash, role: UserRole.MAINTENANCE },
       update: { passwordHash, role: UserRole.MAINTENANCE },
     }),
     prisma.user.upsert({
-      where: { email: 'tenant@estateos.demo' },
-      create: { name: 'Amina Yusuf', email: 'tenant@estateos.demo', passwordHash, role: UserRole.TENANT },
+      where: { email: 'tenant@estateos.test' },
+      create: { name: 'Amina Yusuf', email: 'tenant@estateos.test', passwordHash, role: UserRole.TENANT },
       update: { passwordHash, role: UserRole.TENANT },
     }),
     prisma.user.upsert({
-      where: { email: 'owner@estateos.demo' },
-      create: { name: 'Jordan Ellis', email: 'owner@estateos.demo', passwordHash, role: UserRole.OWNER },
+      where: { email: 'owner@estateos.test' },
+      create: { name: 'Jordan Ellis', email: 'owner@estateos.test', passwordHash, role: UserRole.OWNER },
       update: { passwordHash, role: UserRole.OWNER },
     }),
   ]);
@@ -215,7 +216,7 @@ async function main() {
     ],
   });
 
-  console.log('EstateOS demo portfolio seeded', {
+  logInfo('EstateOS test fixtures seeded', {
     manager: manager.email,
     technician: technician.email,
     tenant: tenantUser.email,
@@ -225,7 +226,7 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error(error);
+    logError('EstateOS seed failed', error);
     process.exitCode = 1;
   })
   .finally(async () => {

@@ -22,6 +22,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run lint
+      - run: npx tsc -b --pretty false
       - run: npm run test:frontend
       - run: npm run build:client
 
@@ -59,6 +61,7 @@ jobs:
       - run: npm ci
       - run: npm run prisma:generate
       - run: npx prisma migrate deploy
+      - run: npm run typecheck
       - run: npm run build
       - run: npm test
       - run: npm run test:coverage
@@ -90,13 +93,13 @@ jobs:
       PUBLIC_URL: http://127.0.0.1:8080
       ADMIN_SEED_EMAIL: admin@estateos.test
       ADMIN_SEED_PASSWORD: EstateOS-CI-Admin-Password!
-      DEMO_SEED_PASSWORD: EstateOS-CI-Role-Password!
+      TEST_SEED_PASSWORD: EstateOS-CI-Role-Password!
       ESTATEOS_E2E_URL: http://127.0.0.1:8080
       ESTATEOS_ADMIN: admin@estateos.test:EstateOS-CI-Admin-Password!
-      ESTATEOS_MANAGER: manager@estateos.demo:EstateOS-CI-Role-Password!
-      ESTATEOS_OWNER: owner@estateos.demo:EstateOS-CI-Role-Password!
-      ESTATEOS_TENANT: tenant@estateos.demo:EstateOS-CI-Role-Password!
-      ESTATEOS_MAINTENANCE: maintenance@estateos.demo:EstateOS-CI-Role-Password!
+      ESTATEOS_MANAGER: manager@estateos.test:EstateOS-CI-Role-Password!
+      ESTATEOS_OWNER: owner@estateos.test:EstateOS-CI-Role-Password!
+      ESTATEOS_TENANT: tenant@estateos.test:EstateOS-CI-Role-Password!
+      ESTATEOS_MAINTENANCE: maintenance@estateos.test:EstateOS-CI-Role-Password!
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -106,7 +109,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: docker compose -f docker-compose.prod.yml up --build --wait --wait-timeout 300
-      - run: docker compose -f docker-compose.prod.yml exec -T -e ADMIN_SEED_EMAIL -e ADMIN_SEED_PASSWORD -e DEMO_SEED_PASSWORD -e SEED_DEMO_DATA=true api node dist/prisma/seed.js
+      - run: docker compose -f docker-compose.prod.yml exec -T -e ADMIN_SEED_EMAIL -e ADMIN_SEED_PASSWORD -e TEST_SEED_PASSWORD -e SEED_TEST_DATA=true api node dist/prisma/seed.js
       - run: npm run test:e2e
       - if: always()
         run: docker compose -f docker-compose.prod.yml ps

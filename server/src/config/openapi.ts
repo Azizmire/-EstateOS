@@ -2,7 +2,7 @@ export const openApiDocument = {
   openapi: '3.0.3',
   info: {
     title: 'EstateOS API',
-    version: '1.0.0',
+    version: '1.0.0-rc.1',
     description:
       'REST API for EstateOS property operations, including portfolio management, leasing, payments, maintenance, and analytics.',
   },
@@ -24,6 +24,7 @@ export const openApiDocument = {
     { name: 'Expenses' },
     { name: 'Notifications' },
     { name: 'Files' },
+    { name: 'Uploads' },
     { name: 'Portals' },
     { name: 'Reports' },
     { name: 'Administration' },
@@ -141,6 +142,26 @@ export const openApiDocument = {
               },
             },
           },
+        },
+      },
+    },
+    '/ready': {
+      get: {
+        tags: ['System'],
+        summary: 'Check database, rate-limit store, and malware scanner readiness',
+        responses: {
+          '200': { description: 'Dependencies are ready' },
+          '503': { description: 'A required dependency is unavailable' },
+        },
+      },
+    },
+    '/auth/bootstrap': {
+      post: {
+        tags: ['Authentication'],
+        summary: 'Create the first administrator when no users exist',
+        responses: {
+          '201': { description: 'Initial administrator created' },
+          '409': { description: 'Bootstrap is no longer available' },
         },
       },
     },
@@ -288,6 +309,33 @@ export const openApiDocument = {
         responses: { '204': { description: 'Property deleted' } },
       },
     },
+    '/properties/{propertyId}/units': {
+      post: {
+        tags: ['Properties'],
+        summary: 'Create a unit in a property',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'propertyId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '201': { description: 'Unit created' } },
+      },
+    },
+    '/properties/{propertyId}/units/{unitId}': {
+      parameters: [
+        { name: 'propertyId', in: 'path', required: true, schema: { type: 'string' } },
+        { name: 'unitId', in: 'path', required: true, schema: { type: 'string' } },
+      ],
+      patch: {
+        tags: ['Properties'],
+        summary: 'Update a unit',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Unit updated' } },
+      },
+      delete: {
+        tags: ['Properties'],
+        summary: 'Delete an unreferenced unit',
+        security: [{ bearerAuth: [] }],
+        responses: { '204': { description: 'Unit deleted' }, '409': { description: 'Unit is in use' } },
+      },
+    },
     '/tenants': {
       get: {
         tags: ['Tenants'],
@@ -302,6 +350,27 @@ export const openApiDocument = {
         responses: { '201': { description: 'Tenant created' } },
       },
     },
+    '/tenants/{id}': {
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      get: {
+        tags: ['Tenants'],
+        summary: 'Get a tenant',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Tenant details' }, '404': { description: 'Tenant not found' } },
+      },
+      patch: {
+        tags: ['Tenants'],
+        summary: 'Update a tenant',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Tenant updated' } },
+      },
+      delete: {
+        tags: ['Tenants'],
+        summary: 'Delete an unreferenced tenant',
+        security: [{ bearerAuth: [] }],
+        responses: { '204': { description: 'Tenant deleted' }, '409': { description: 'Tenant has active records' } },
+      },
+    },
     '/leases': {
       get: {
         tags: ['Leases'],
@@ -314,6 +383,27 @@ export const openApiDocument = {
         summary: 'Create a lease',
         security: [{ bearerAuth: [] }],
         responses: { '201': { description: 'Lease created' } },
+      },
+    },
+    '/leases/{id}': {
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      get: {
+        tags: ['Leases'],
+        summary: 'Get a lease',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Lease details' }, '404': { description: 'Lease not found' } },
+      },
+      patch: {
+        tags: ['Leases'],
+        summary: 'Update or terminate a lease',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Lease updated' }, '409': { description: 'Invalid lifecycle transition' } },
+      },
+      delete: {
+        tags: ['Leases'],
+        summary: 'Delete a draft lease',
+        security: [{ bearerAuth: [] }],
+        responses: { '204': { description: 'Lease deleted' }, '409': { description: 'Only draft leases can be deleted' } },
       },
     },
     '/payments': {
@@ -338,6 +428,36 @@ export const openApiDocument = {
         responses: { '200': { description: 'Payment summary' } },
       },
     },
+    '/payments/{id}': {
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      get: {
+        tags: ['Payments'],
+        summary: 'Get a payment',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Payment details' }, '404': { description: 'Payment not found' } },
+      },
+      patch: {
+        tags: ['Payments'],
+        summary: 'Update a payment',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Payment updated' } },
+      },
+      delete: {
+        tags: ['Payments'],
+        summary: 'Delete a payment',
+        security: [{ bearerAuth: [] }],
+        responses: { '204': { description: 'Payment deleted' } },
+      },
+    },
+    '/payments/{id}/mark-paid': {
+      post: {
+        tags: ['Payments'],
+        summary: 'Record a payment as paid',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Payment marked paid' } },
+      },
+    },
     '/maintenance': {
       get: {
         tags: ['Maintenance'],
@@ -358,6 +478,62 @@ export const openApiDocument = {
         summary: 'Get maintenance summary',
         security: [{ bearerAuth: [] }],
         responses: { '200': { description: 'Maintenance summary' } },
+      },
+    },
+    '/maintenance/{id}': {
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      get: {
+        tags: ['Maintenance'],
+        summary: 'Get a maintenance request',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Maintenance request details' }, '404': { description: 'Request not found' } },
+      },
+      patch: {
+        tags: ['Maintenance'],
+        summary: 'Update assignment, priority, or status',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Maintenance request updated' } },
+      },
+      delete: {
+        tags: ['Maintenance'],
+        summary: 'Delete a maintenance request',
+        security: [{ bearerAuth: [] }],
+        responses: { '204': { description: 'Maintenance request deleted' } },
+      },
+    },
+    '/expenses': {
+      get: {
+        tags: ['Expenses'],
+        summary: 'List expenses with pagination and period filters',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Expense list' } },
+      },
+      post: {
+        tags: ['Expenses'],
+        summary: 'Create an expense',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Expense created' } },
+      },
+    },
+    '/expenses/{id}': {
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      get: {
+        tags: ['Expenses'],
+        summary: 'Get an expense',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Expense details' }, '404': { description: 'Expense not found' } },
+      },
+      patch: {
+        tags: ['Expenses'],
+        summary: 'Update an expense',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Expense updated' } },
+      },
+      delete: {
+        tags: ['Expenses'],
+        summary: 'Delete an expense',
+        security: [{ bearerAuth: [] }],
+        responses: { '204': { description: 'Expense deleted' } },
       },
     },
     '/leases/{id}/activate': {
@@ -465,6 +641,14 @@ export const openApiDocument = {
         responses: { '200': { description: 'Audit event list' } },
       },
     },
+    '/admin/metrics': {
+      get: {
+        tags: ['Administration'],
+        summary: 'Get API process and request metrics',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Runtime metrics' }, '403': { description: 'Administrator role required' } },
+      },
+    },
     '/notifications': {
       get: {
         tags: ['Notifications'],
@@ -473,12 +657,68 @@ export const openApiDocument = {
         responses: { '200': { description: 'Notification list' } },
       },
     },
+    '/notifications/{id}/read': {
+      patch: {
+        tags: ['Notifications'],
+        summary: 'Mark a notification as read',
+        security: [{ bearerAuth: [] }],
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: { '200': { description: 'Notification updated' }, '404': { description: 'Notification not found' } },
+      },
+    },
+    '/notifications/read-all': {
+      post: {
+        tags: ['Notifications'],
+        summary: 'Mark all current-user notifications as read',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'Notifications updated' } },
+      },
+    },
     '/files': {
       get: {
         tags: ['Files'],
         summary: 'List files visible to the current role with pagination',
         security: [{ bearerAuth: [] }],
         responses: { '200': { description: 'Authorized file list' } },
+      },
+    },
+    '/files/{id}': {
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      get: {
+        tags: ['Files'],
+        summary: 'Download an authorized file',
+        security: [{ bearerAuth: [] }],
+        responses: { '200': { description: 'File bytes' }, '404': { description: 'File not found' } },
+      },
+      delete: {
+        tags: ['Files'],
+        summary: 'Delete an authorized file and its stored bytes',
+        security: [{ bearerAuth: [] }],
+        responses: { '204': { description: 'File deleted' } },
+      },
+    },
+    '/uploads/property-image': {
+      post: {
+        tags: ['Uploads'],
+        summary: 'Upload and scan a property image',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Property image stored' }, '400': { description: 'Invalid or unsafe file' } },
+      },
+    },
+    '/uploads/lease-document': {
+      post: {
+        tags: ['Uploads'],
+        summary: 'Upload and scan a lease document',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Lease document stored' }, '400': { description: 'Invalid or unsafe file' } },
+      },
+    },
+    '/uploads/maintenance-attachment': {
+      post: {
+        tags: ['Uploads'],
+        summary: 'Upload and scan a maintenance attachment',
+        security: [{ bearerAuth: [] }],
+        responses: { '201': { description: 'Maintenance attachment stored' }, '400': { description: 'Invalid or unsafe file' } },
       },
     },
   },

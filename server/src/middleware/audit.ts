@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from 'express';
+import { logError } from '../lib/logger.js';
 import type { AuditService } from '../services/audit.service.js';
 
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -29,7 +30,11 @@ export function createAuditMiddleware(auditService: AuditService) {
       }).then(() => {
         originalEnd(chunk as never, encoding as never, callback);
       }).catch((error: unknown) => {
-        console.error('Failed to persist audit event', error);
+        logError('Failed to persist audit event', error, {
+          actorId: req.user?.id,
+          method: req.method,
+          path: req.originalUrl,
+        });
         if (!res.headersSent) {
           res.statusCode = 503;
           res.removeHeader('content-length');

@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import type { NextFunction, Request, Response } from 'express';
 import multer from 'multer';
 import { ZodError } from 'zod';
+import { logError } from '../lib/logger.js';
 import { InvalidUploadError } from '../storage/storage-errors.js';
 
 export function notFound(req: Request, res: Response) {
@@ -46,6 +47,6 @@ export function errorHandler(error: unknown, _req: Request, res: Response, _next
     }
   }
 
-  console.error(error);
+  logError('Unhandled API error', error);
   return res.status(500).json({ message: 'Internal server error' });
 }

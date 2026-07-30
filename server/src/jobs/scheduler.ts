@@ -6,6 +6,7 @@ import {
   UserRole,
 } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
+import { logError, logInfo } from '../lib/logger.js';
 import { acquireJobLock, releaseJobLock } from '../lib/redis.js';
 
 const JOB_INTERVAL_MS = 60 * 60 * 1000;
@@ -149,7 +150,7 @@ export async function runPortfolioJobs(now = new Date()) {
       });
     }
 
-    console.log('EstateOS scheduled jobs completed', {
+    logInfo('EstateOS scheduled jobs completed', {
       latePayments: latePayments.count,
       expiringLeases: expiringLeases.count,
       endedLeases: endedLeases.count,
@@ -158,11 +159,11 @@ export async function runPortfolioJobs(now = new Date()) {
       completedAt: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('EstateOS scheduled jobs failed', error);
+    logError('EstateOS scheduled jobs failed', error);
   } finally {
     if (lockToken) {
       await releaseJobLock('estateos:jobs:portfolio', lockToken).catch((error) => {
-        console.error('EstateOS scheduler lock release failed', error);
+        logError('EstateOS scheduler lock release failed', error);
       });
     }
     running = false;

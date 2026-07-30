@@ -1,11 +1,12 @@
 import { createClient } from 'redis';
 import { randomUUID } from 'node:crypto';
 import { env } from '../config/env.js';
+import { logError } from './logger.js';
 
 export const redis = env.REDIS_URL ? createClient({ url: env.REDIS_URL }) : null;
 
 redis?.on('error', (error) => {
-  console.error('Redis connection error', error);
+  logError('Redis connection error', error);
 });
 
 export async function connectRedis() {

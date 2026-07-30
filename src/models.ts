@@ -21,7 +21,7 @@ export type PaymentRecord = {
   id: string; tenant: string; property: string; amount: number; dueDate: string;
   status: 'PENDING' | 'PAID' | 'LATE' | 'FAILED' | 'REFUNDED';
 };
-export type NotificationRecord = { id: string; title: string; message: string; read: boolean; createdAt: string };
+type NotificationRecord = { id: string; title: string; message: string; read: boolean; createdAt: string };
 export type Workspace = {
   properties: PropertyRecord[]; tenants: TenantRecord[]; leases: LeaseRecord[];
   maintenance: WorkOrder[]; payments: PaymentRecord[]; notifications: NotificationRecord[];

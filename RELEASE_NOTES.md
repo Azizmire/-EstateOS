@@ -1,38 +1,57 @@
-# EstateOS v1.0
+# EstateOS v1.0.0-rc.1
 
-## Product
+EstateOS v1.0.0-rc.1 is the first release candidate for the production-oriented
+property operations platform.
 
-- Added authenticated manager, administrator, maintenance, resident, and owner
-  workspaces.
-- Connected the React application to the production API while preserving
-  role-based demo workspaces for evaluation.
-- Added property, resident, lease, payment, maintenance, report, document, and
-  administration interfaces.
-- Added lease activation, renewal, move-out, and termination workflows.
-- Added tenant-scoped service requests and owner-scoped performance reporting.
+## Major features
 
-## Security and operations
+- PostgreSQL-backed Admin, Manager, Owner, Tenant, and Maintenance workspaces.
+- Property, unit, resident, lease, payment, expense, maintenance, notification,
+  document, and reporting workflows.
+- Lease creation, activation, renewal, move-out, termination, and occupancy
+  safeguards.
+- Tenant-scoped maintenance submission and Owner-scoped financial performance.
+- Short-lived access tokens with rotating, revocable refresh sessions.
+- Durable audit logging, request identifiers, defensive headers, and
+  Redis-backed distributed rate limiting.
+- ClamAV upload scanning, detected content types, SHA-256 checksums, image
+  re-encoding, and authorized file retrieval.
+- Paginated collections and database-side financial aggregation.
+- OpenAPI documentation and containerized production deployment.
 
-- Added owner access assignments and linked resident accounts.
-- Added authorized file retrieval and deletion.
-- Added request IDs, security headers, API and authentication rate limits,
-  liveness, readiness, and administrator metrics.
-- Added containerized web, API, PostgreSQL, and durable upload services.
-- Added production migrations, non-root API execution, health checks, and
-  reverse proxy configuration.
-- Expanded GitHub Actions to validate the client, API, database migrations,
-  automated tests, coverage, and container builds.
+## Verification
 
-## Quality
+- 93 backend tests passed with PostgreSQL.
+- 3 frontend component tests passed.
+- 6 Playwright production-stack tests passed.
+- Backend coverage: 84.74% statements, 70.13% branches, 91.03% functions, and
+  87.56% lines.
+- Frontend, API, Prisma migrations, production images, and the complete Docker
+  stack passed GitHub Actions verification.
+- Production dependency audits reported no known vulnerabilities.
 
-- Expanded the automated suite from 15 to 31 passing tests.
-- Added coverage for resource routes, portal scoping, role boundaries, uploads,
-  reporting, middleware, rate limiting, health, and error responses.
-- Added complete setup, security, monitoring, backup, restore, release, and
-  rollback documentation.
+## Breaking changes
 
-## Required production configuration
+None. This is the first versioned release candidate.
 
-EstateOS v1 requires an HTTPS-capable container host, PostgreSQL, a persistent
-upload volume, and production secrets. Copy `.env.production.example`, replace
-all placeholders, then deploy with `docker-compose.prod.yml`.
+The optional local/CI fixture environment variables are named
+`SEED_TEST_DATA` and `TEST_SEED_PASSWORD`. Earlier untagged development builds
+used demo-oriented names.
+
+## Known limitations
+
+- Production secrets, TLS, hosting, centralized observability, backup
+  restoration testing, penetration testing, load testing, and container
+  signing/scanning must be supplied by the deployment environment.
+- Local file storage requires a durable volume and does not provide horizontal
+  object-storage semantics.
+- Scheduled work uses a distributed leader lock but not a durable retry queue.
+- Browser automation covers all role logins and the Tenant maintenance write
+  workflow; additional deep role journeys are planned after v1.
+
+## Upgrade and deployment notes
+
+This is a release candidate. Back up PostgreSQL and the upload volume before
+deployment, apply committed migrations with `prisma migrate deploy`, and follow
+[OPERATIONS.md](OPERATIONS.md) and
+[PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).

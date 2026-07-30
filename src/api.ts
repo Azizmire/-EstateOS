@@ -61,7 +61,7 @@ async function rotateSession() {
   activeTokens = { token: payload.token, refreshToken: payload.refreshToken };
 }
 
-export async function logout(session: Session) {
+export async function logout(_session: Session) {
   if (activeTokens?.refreshToken) {
     await fetch(`${API_URL}/auth/logout`, {
       method: 'POST',

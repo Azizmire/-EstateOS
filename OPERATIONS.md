@@ -1,5 +1,33 @@
 # EstateOS operations
 
+## Production deployment
+
+1. Copy `.env.production.example` to `.env.production`.
+2. Replace every example value and move the final secrets into the selected
+   platform's managed secret store.
+3. Set `PUBLIC_URL` to the public HTTPS origin.
+4. Build and start the stack:
+
+   ```sh
+   docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
+   ```
+
+The one-shot `migrate` service applies committed PostgreSQL migrations before
+the API can become healthy. Confirm the service completed successfully and do
+not use `prisma migrate dev` in production.
+
+Before first sign-in, set `ADMIN_SEED_NAME`, `ADMIN_SEED_EMAIL`, and
+`ADMIN_SEED_PASSWORD` in the one-shot seed process environment and run:
+
+```sh
+docker compose --env-file .env.production -f docker-compose.prod.yml exec -T \
+  -e ADMIN_SEED_NAME -e ADMIN_SEED_EMAIL -e ADMIN_SEED_PASSWORD \
+  -e SEED_TEST_DATA=false api node dist/prisma/seed.js
+```
+
+Remove the bootstrap password from the process environment after the
+administrator is created.
+
 ## Health and monitoring
 
 - `GET /api/health` confirms the API process is alive.
@@ -47,13 +75,15 @@ quarterly.
 
 ## Release
 
-1. Confirm CI passes.
+1. Confirm lint, type checks, builds, tests, coverage, migrations, containers,
+   and production-stack CI jobs pass on the release commit.
 2. Review pending Prisma migrations.
 3. Create database and upload backups.
-4. Build new images and start the stack.
+4. Build immutable images from the tagged commit and record their digests.
 5. Confirm PostgreSQL, Redis, ClamAV, API, and web health; then verify login,
    refresh rotation, role scoping, malware-scanned uploads, and audit capture.
-6. Keep the previous images available for rollback.
+6. Sign and scan the images before promotion.
+7. Keep the previous images available for rollback.
 
 Database migrations are forward-only. If a release must be rolled back after a
 non-compatible schema change, restore the pre-release backup rather than editing

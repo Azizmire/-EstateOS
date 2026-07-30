@@ -43,13 +43,21 @@ vi.mock('../src/lib/redis.js', () => ({
   releaseJobLock: locks.release,
 }));
 
+const logger = vi.hoisted(() => ({
+  info: vi.fn(),
+  error: vi.fn(),
+}));
+
+vi.mock('../src/lib/logger.js', () => ({
+  logInfo: logger.info,
+  logError: logger.error,
+}));
+
 import { runPortfolioJobs, startPortfolioJobScheduler } from '../src/jobs/scheduler.js';
 
 describe('portfolio scheduler', () => {
   beforeEach(() => {
     vi.useRealTimers();
-    vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
     locks.acquire.mockResolvedValue('lock-token');
     locks.release.mockResolvedValue(undefined);
     database.paymentFindMany.mockResolvedValue([]);
@@ -114,7 +122,7 @@ describe('portfolio scheduler', () => {
 
     await runPortfolioJobs();
 
-    expect(console.error).toHaveBeenCalledWith(
+    expect(logger.error).toHaveBeenCalledWith(
       'EstateOS scheduled jobs failed',
       expect.any(Error),
     );

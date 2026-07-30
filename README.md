@@ -32,9 +32,11 @@ residents, maintenance teams, and property owners.
 Authorization is enforced by the API. Frontend navigation is only a convenience
 and is not treated as a security boundary.
 
-## Local development
+## Installation and local development
 
-Requirements: Node.js 22, npm, PostgreSQL 17, Redis 7, and optionally Docker Desktop.
+Requirements: Node.js 22, npm 10, and PostgreSQL 17. Docker Desktop is
+recommended. Redis 7 and ClamAV are optional locally and required in
+production.
 
 1. Start PostgreSQL:
 
@@ -58,8 +60,8 @@ Requirements: Node.js 22, npm, PostgreSQL 17, Redis 7, and optionally Docker Des
    ADMIN_SEED_NAME="EstateOS Administrator"
    ADMIN_SEED_EMAIL="admin@example.com"
    ADMIN_SEED_PASSWORD="replace-with-a-strong-bootstrap-password"
-   SEED_DEMO_DATA="true"
-   DEMO_SEED_PASSWORD="replace-with-a-demo-password"
+   SEED_TEST_DATA="true"
+   TEST_SEED_PASSWORD="replace-with-a-test-fixture-password"
    ```
 
 4. Prepare the database:
@@ -81,13 +83,16 @@ The web application runs at `http://localhost:5173`, the API at
 `http://localhost:4000`, and API documentation at
 `http://localhost:4000/api/docs`.
 
-The application uses authenticated API data in every mode; no demo-role
-shortcut or fallback dataset is included in the web bundle.
+The optional test fixture seed is intended for local verification and CI only.
+The application uses authenticated API data in every mode; no role shortcut or
+fallback dataset is included in the production web bundle.
 
 ## Validation
 
 ```sh
 npm run build
+npm run lint
+npm run typecheck
 npm test
 npm run test:frontend
 npm --prefix server run test:coverage
@@ -114,14 +119,24 @@ The stack includes:
 - Redis for distributed rate limiting
 - ClamAV for mandatory malware scanning
 - A durable upload volume
-- Automatic production migration deployment on API startup
+- A one-shot migration service that must succeed before API startup
 
-See [OPERATIONS.md](OPERATIONS.md) for monitoring, backup, restore, and release
-procedures and [SECURITY.md](SECURITY.md) for the security model.
+See [OPERATIONS.md](OPERATIONS.md) for deployment, monitoring, backup, restore,
+and rollback procedures; [SECURITY.md](SECURITY.md) for the security model; and
+[PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md) for the codebase-versus-
+infrastructure release boundary.
+
+## Release information
+
+- [Release notes](RELEASE_NOTES.md)
+- [Changelog](CHANGELOG.md)
+- [Production readiness report](PRODUCTION_READINESS.md)
+- [MIT license](LICENSE)
 
 ## API surface
 
 All protected routes accept `Authorization: Bearer <token>`.
+Interactive OpenAPI documentation is served from `/api/docs` by a running API.
 
 - `/api/auth` – bootstrap, login, rotating refresh sessions, logout, password changes, account creation, current user
 - `/api/dashboard` – portfolio summary and activity
