@@ -106,7 +106,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: docker compose -f docker-compose.prod.yml up --build --wait --wait-timeout 300
-      - run: docker compose -f docker-compose.prod.yml exec -T -e ADMIN_SEED_EMAIL -e ADMIN_SEED_PASSWORD -e DEMO_SEED_PASSWORD -e SEED_DEMO_DATA=true api npm run prisma:seed
+      - run: docker compose -f docker-compose.prod.yml exec -T -e ADMIN_SEED_EMAIL -e ADMIN_SEED_PASSWORD -e DEMO_SEED_PASSWORD -e SEED_DEMO_DATA=true api node dist/prisma/seed.js
       - run: npm run test:e2e
       - if: always()
         run: docker compose -f docker-compose.prod.yml ps
