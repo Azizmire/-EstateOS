@@ -1,176 +1,192 @@
-# EstateOS Production Readiness Report
+# EstateOS v1.0.0-rc.1 Final Readiness Report
 
 **Verification date:** July 29, 2026
 
-**Overall completion:** **96%**
+**Repository completion:** **98%**
 
-**Decision:** **Release candidate; final production approval is conditional on deployment-environment evidence**
+**Production readiness:** **96%**
 
-## Executive Summary
+**Decision:** **Release candidate approved; production approval remains
+conditional on infrastructure evidence**
 
-EstateOS was reverified from clean dependency lockfiles locally and through the
-complete GitHub Actions pipeline. All repository-controlled release gates pass:
-the frontend and backend build, Prisma validates and generates, PostgreSQL
-migrations apply to a clean database, all test tiers pass, both production
-images build, the complete Docker stack becomes healthy, and all five user
-roles authenticate through the deployed web application.
+## Executive summary
 
-EstateOS is not marked 100% complete because final managed-secret integration,
-TLS and penetration testing, production observability, a backup restoration
-drill, representative load testing, and image supply-chain controls require the
-selected hosting environment.
+EstateOS v1.0.0-rc.1 passes every repository-controlled release gate. Clean
+installs, linting, explicit frontend/backend type checks, production builds,
+Prisma generation and validation, committed PostgreSQL migrations, unit and
+integration tests, enforced backend coverage, production image builds, the
+complete Docker Compose stack, and role-based browser tests all pass.
 
-## Build Results
+No repository-controlled release blocker is known. Repository completion is
+reported as 98%, rather than 100%, because the frontend still contains
+non-blocking type and modularity debt and its coverage is not yet enforced as a
+numeric gate. Production readiness remains 96% because managed secrets, TLS,
+hosting, centralized monitoring, restoration testing, penetration testing,
+representative load testing, and container signing/scanning require the final
+deployment environment.
 
-| Build check | Result |
-|---|---|
-| Clean root install (`npm ci`) | Pass |
-| Clean backend install (`npm ci`) | Pass |
-| Prisma client generation and schema validation | Pass |
-| Frontend TypeScript and Vite production build | Pass |
-| Backend TypeScript production build | Pass |
-| Frontend production image | Pass |
-| API production image | Pass |
-| Production dependency audit | Pass — 0 known vulnerabilities |
+## Final CI evidence
 
-The generated frontend JavaScript bundle is 243.38 kB (73.67 kB gzip), with
-17.41 kB of CSS (4.08 kB gzip).
-
-## Test Results
-
-| Test suite | Verified result |
-|---|---|
-| Backend unit/integration suite with PostgreSQL | 91 passed |
-| Frontend component suite | 3 passed |
-| Playwright end-to-end suite | 6 passed |
-| Admin login and workspace | Pass |
-| Manager login and workspace | Pass |
-| Owner login and workspace | Pass |
-| Tenant login and workspace | Pass |
-| Maintenance login and workspace | Pass |
-| Tenant maintenance-request database workflow | Pass |
-
-The local backend run passed 90 tests and skipped the one PostgreSQL-only file
-as designed. GitHub Actions supplied PostgreSQL and passed all 91 backend tests.
-
-## Coverage
-
-| Metric | Result |
-|---|---:|
-| Statements | 84.74% |
-| Branches | 70.13% |
-| Functions | 91.03% |
-| Lines | 87.56% |
-
-All enforced backend coverage thresholds pass. Frontend and end-to-end tests
-are present and pass; frontend coverage is not currently a numeric release
-gate.
-
-## Docker Verification
-
-The CI production-stack job built the repository's production images and
-started `docker-compose.prod.yml` with PostgreSQL, Redis, ClamAV, API, and web
-services. The stack reached healthy status inside the configured timeout,
-executed the compiled production seed, passed the browser workflows through
-the deployed web endpoint, emitted service status/logs, and shut down cleanly.
-
-## PostgreSQL Migration Verification
-
-CI started a clean PostgreSQL 17 service and successfully ran
-`prisma migrate deploy` before the backend build and tests. The production
-compose stack also ran the one-shot migration service successfully before API
-health verification and end-to-end testing.
-
-## CI Status
-
-Fresh full verification:
-[GitHub Actions run 30505615895, attempt 2](https://github.com/Azizmire/-EstateOS/actions/runs/30505615895/attempts/2)
+[GitHub Actions run 30507975701](https://github.com/Azizmire/-EstateOS/actions/runs/30507975701)
+verified commit `1699ba8`.
 
 | CI job | Result |
 |---|---|
-| Frontend | Pass |
-| API and PostgreSQL | Pass |
-| Container image builds | Pass |
-| Production Docker stack and role E2E | Pass |
+| Frontend clean install, lint, type check, test, and build | Pass |
+| API clean install, Prisma, migration, type check, build, test, and coverage | Pass |
+| Frontend and API production image builds | Pass |
+| Production Docker stack, seed, health, and role E2E | Pass |
 
-The workflow action dependencies were upgraded to their current Node 24
-runtime majors (`checkout@v6`, `setup-node@v6`, `setup-buildx-action@v4`, and
-`build-push-action@v7`) to remove the previous Node 20 runtime warnings.
+## Build and static-quality results
 
-## Resolved Issues
+| Check | Result |
+|---|---|
+| Root clean install with npm 10 | Pass — 0 vulnerabilities |
+| Backend clean install with npm 10 | Pass — 0 vulnerabilities |
+| ESLint | Pass — 0 warnings and 0 errors |
+| Frontend TypeScript check | Pass |
+| Backend TypeScript check | Pass |
+| Frontend Vite production build | Pass |
+| Backend TypeScript production build | Pass |
+| Prisma client generation | Pass |
+| Prisma schema validation | Pass |
+| Documentation link check | Pass |
+| Backend unused dependency/export scan | Pass |
+| Runtime TODO, placeholder, demo, and debug scan | Pass |
 
-- Fixed all six previously confirmed release blockers.
-- Removed demo sign-in controls, demo identities, hardcoded KPI behavior, and
-  unused upload implementations from production runtime paths.
-- Connected Admin, Manager, Owner, Tenant, and Maintenance behavior to
-  PostgreSQL-backed records.
-- Completed lease renewal, activation, move-out, termination, assignment
-  validation, and deletion safeguards.
-- Added short-lived access tokens and rotating, revocable, database-backed
-  refresh sessions.
-- Added Redis-backed distributed rate limiting and scheduler leader locking.
-- Made audit persistence durable and corrected malformed audit-failure response
-  framing.
-- Added required ClamAV upload scanning, content detection, file checksums, and
-  authorization checks.
-- Added pagination, accounting-period filters, and database-side aggregation.
-- Corrected and expanded OpenAPI, security, operations, backup, restore, and
-  release documentation.
-- Fixed npm lockfile compatibility, coverage timeouts, and production seeding
-  so clean CI and Docker execution are reproducible.
-- Added frontend, backend, PostgreSQL integration, and Playwright tests and
-  raised backend coverage above 80% for statements and lines.
-- Upgraded CI actions to supported Node 24 runtime releases.
+The frontend bundle is 243.38 kB JavaScript (73.67 kB gzip) and 16.72 kB CSS
+(4.59 kB gzip).
 
-No unresolved repository-controlled release-blocking bug was found in this
-verification.
+## Test results
 
-## Remaining Issues
+| Test tier | Result |
+|---|---|
+| Backend with PostgreSQL | 93 passed |
+| Frontend component tests | 3 passed |
+| Playwright production-stack tests | 6 passed |
+| Admin authentication and workspace | Pass |
+| Manager authentication and workspace | Pass |
+| Owner authentication and workspace | Pass |
+| Tenant authentication and workspace | Pass |
+| Maintenance authentication and workspace | Pass |
+| Tenant maintenance-request write workflow | Pass |
 
-These deployment-environment items remain and account for the final 4%:
+The local backend run passed 92 tests and skipped the single PostgreSQL-only
+workflow as designed. CI supplied PostgreSQL and passed all 93 tests.
 
-1. Put PostgreSQL, Redis, JWT, seed, and third-party credentials in the hosting
-   platform's managed secret store and rotate values before launch.
-2. Terminate TLS at the production ingress, verify proxy headers, and complete
-   an external penetration test against the deployed hostname.
-3. Configure centralized logs, metrics, traces, uptime checks, SLOs, and alert
-   routing.
-4. Run and document a backup restoration drill using the production database
-   service.
-5. Run representative large-portfolio load tests and review PostgreSQL query
-   plans, connection-pool limits, and upload concurrency.
-6. Add container vulnerability/signature scanning and an immutable-image
-   promotion policy.
+## Coverage
 
-## Security and Performance Position
+| Backend metric | Result |
+|---|---:|
+| Statements | 84.76% |
+| Branches | 70.15% |
+| Functions | 91.20% |
+| Lines | 87.56% |
 
-No known critical application vulnerability or production dependency advisory
-is open. Implemented controls include refresh rotation and revocation,
-distributed rate limiting, durable audit gating, malware scanning, checksums,
-role scoping, validation, defensive headers, non-root containers, and explicit
-production secret requirements. Residual security risk is deployment-specific.
+Every enforced backend threshold passes. Frontend tests pass, but frontend
+coverage is not yet an enforced numeric release gate.
 
-Collections are paginated, dashboards use database aggregation, Owner financial
-queries are period-scoped, scheduled execution is replica-locked, and database
-migrations are separated from API startup. Production-scale query plans,
-connection-pool sizing, and concurrent upload behavior still need measurement
-under representative traffic.
+## PostgreSQL migration status
 
-## Recommended v1.1 Improvements
+CI started a clean PostgreSQL 17 database and successfully applied all three
+committed migrations with `prisma migrate deploy`:
 
-- Move file storage to encrypted object storage with signed URLs and retention
-  policies.
-- Add a durable job queue with retries and dead-letter handling.
-- Add payment-provider reconciliation and webhook idempotency.
-- Add electronic lease signatures and inspection workflows.
-- Generate a typed frontend client from the OpenAPI specification.
-- Split the frontend into role-oriented feature modules.
-- Expand browser coverage for lease renewal, Owner reporting, Manager
-  reconciliation, and Maintenance completion.
+1. `20260729232300_initial`
+2. `20260730001000_portal_roles`
+3. `20260730001000_refresh_sessions`
 
-## Final Position
+The production Compose stack also required the one-shot migration service to
+complete before the API became healthy.
 
-EstateOS is **96% complete and verified as a deployable release candidate**.
-Every repository-controlled audit gate passes. It must not be labeled 100%
-until the six environment-dependent items above are completed or explicitly
-accepted by the release owner with documented risk ownership.
+## Docker status
+
+Both production images built successfully. The production stack started
+PostgreSQL, Redis, ClamAV, the migration service, API, and web application. All
+required health checks passed, the compiled seed completed, the browser suite
+ran through the deployed web endpoint, service status and logs were collected,
+and the stack shut down cleanly.
+
+## Final repository audit
+
+- No unused production or development package was identified.
+- No undeclared runtime package remains.
+- No unused backend export remains after the cleanup.
+- No runtime TODO, FIXME, debugger, console-debug, unimplemented, or demo-role
+  shortcut remains.
+- Unused demo CSS and stale seed terminology were removed.
+- Duplicate-code analysis reported less than 1% similarity, limited to import
+  and route scaffolding plus a small lease lookup pattern; extracting those
+  fragments would add indirection without reducing duplicated business rules.
+- All Markdown links pass automated validation.
+- README, installation, deployment, security, operations, OpenAPI, changelog,
+  release notes, environment examples, license, checklist, and this report are
+  current for v1.0.0-rc.1.
+- Production dependency audits report no known vulnerabilities.
+
+## Issues resolved in the final audit
+
+- Added enforceable ESLint and explicit TypeScript CI gates.
+- Enabled unused local and parameter checks in both TypeScript projects.
+- Removed unused exports and the undeclared transitive `qs` type dependency.
+- Removed unused demo selectors and renamed optional fixture identities and
+  environment variables to test-only terminology.
+- Replaced unstructured runtime output with structured JSON logging and added
+  logger tests.
+- Added missing license, changelog, production checklist, and root environment
+  example.
+- Corrected stale installation, migration, deployment, and release guidance.
+- Replaced stale release notes and synchronized all version metadata to
+  `1.0.0-rc.1`.
+- Expanded OpenAPI coverage for readiness, bootstrap, units, CRUD operations,
+  expenses, uploads, notifications, files, and administrator metrics.
+
+## Known repository risks and technical debt
+
+- `src/App.tsx` remains a large role-aware module and should be split into
+  feature modules as the product grows.
+- Some frontend API normalization paths use explicit `any` while adapting
+  heterogeneous role payloads. Strict TypeScript and lint pass, but generated
+  OpenAPI client types would improve this boundary.
+- The frontend test suite is intentionally focused and does not yet enforce a
+  numeric coverage threshold.
+- Browser automation proves all five role logins and one Tenant write workflow.
+  Deeper Manager, Owner, and Maintenance browser journeys remain recommended.
+- Local volume storage is suitable for a durable single deployment but should
+  move to encrypted object storage before horizontal scaling.
+- Scheduled work uses a distributed leader lock but not a durable retry and
+  dead-letter queue.
+
+None of these items is a v1.0.0-rc.1 release blocker.
+
+## Infrastructure required before production approval
+
+- [ ] Store PostgreSQL, Redis, JWT, bootstrap, and third-party credentials in a
+  managed secret store and complete initial rotation.
+- [ ] Provision production hosting and persistent data services.
+- [ ] Install and validate TLS certificates and trusted proxy configuration.
+- [ ] Configure centralized structured logs, metrics, traces, uptime checks,
+  SLOs, and alerts.
+- [ ] Configure encrypted backups and complete a documented disaster-recovery
+  restoration exercise.
+- [ ] Complete an external penetration test against the deployed hostname.
+- [ ] Complete representative portfolio-scale load and concurrency testing.
+- [ ] Add image vulnerability scanning, signing, provenance, and immutable
+  promotion.
+
+## Recommended next steps
+
+1. Review and merge the release-candidate pull request.
+2. Deploy the tagged RC to a production-like staging environment.
+3. Complete every infrastructure checkbox in
+   [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md).
+4. Run the penetration, restoration, and load tests against that environment.
+5. Promote to v1.0.0 only after the release owner records the final production
+   approval.
+
+## Final position
+
+EstateOS v1.0.0-rc.1 is **98% repository-complete** and **96%
+production-ready**. The repository is a verified release candidate with no
+known code-controlled release blocker. It must not be described as fully
+production-approved until the external infrastructure checklist is complete or
+each residual risk has an explicitly documented owner and acceptance.
