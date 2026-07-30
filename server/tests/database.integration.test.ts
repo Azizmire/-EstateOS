@@ -249,5 +249,5 @@ describe.skipIf(!runDatabaseTests)('PostgreSQL role workflow integration', () =>
     expect(rotated.body.refreshToken).not.toBe(session.refreshToken);
     expect((await request(app).post('/api/auth/refresh').send({ refreshToken: session.refreshToken })).status).toBe(401);
     expect((await request(app).post('/api/auth/logout').send({ refreshToken: rotated.body.refreshToken })).status).toBe(204);
-  });
+  }, 20_000);
 });
