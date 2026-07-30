@@ -133,8 +133,41 @@ describe.skipIf(!runDatabaseTests)('PostgreSQL role workflow integration', () =>
     leaseId = lease.body.lease.id;
     expect((await request(app).get('/api/leases').set('Authorization', `Bearer ${managerToken}`)).status).toBe(200);
     expect((await request(app).get(`/api/leases/${leaseId}`).set('Authorization', `Bearer ${managerToken}`)).status).toBe(200);
-    expect((await request(app).patch(`/api/leases/${leaseId}`).set('Authorization', `Bearer ${managerToken}`).send({ notes: 'Integration lease' })).status).toBe(200);
+    expect((await request(app).get('/api/leases/missing').set('Authorization', `Bearer ${managerToken}`)).status).toBe(404);
+    expect((await request(app).patch(`/api/leases/${leaseId}`).set('Authorization', `Bearer ${managerToken}`).send({
+      notes: 'Integration lease',
+      tenantIds: [tenantId, tenantId],
+      primaryTenantId: tenantId,
+    })).status).toBe(200);
+    expect((await request(app).patch('/api/leases/missing').set('Authorization', `Bearer ${managerToken}`).send({ notes: 'Missing' })).status).toBe(404);
+    expect((await request(app).post('/api/leases').set('Authorization', `Bearer ${managerToken}`).send({
+      unitId,
+      tenantIds: [tenantId],
+      primaryTenantId: tenantId,
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() - 86_400_000).toISOString(),
+      monthlyRent: 1800,
+      securityDeposit: 1800,
+    })).status).toBe(400);
     expect((await request(app).post(`/api/leases/${leaseId}/activate`).set('Authorization', `Bearer ${managerToken}`)).status).toBe(200);
+    expect((await request(app).post(`/api/leases/${leaseId}/activate`).set('Authorization', `Bearer ${managerToken}`)).status).toBe(409);
+
+    const currentLease = await prisma.lease.findUniqueOrThrow({ where: { id: leaseId } });
+    expect((await request(app).post(`/api/leases/${leaseId}/renew`).set('Authorization', `Bearer ${managerToken}`).send({
+      startDate: new Date(currentLease.endDate.getTime() - 86_400_000).toISOString(),
+      endDate: new Date(currentLease.endDate.getTime() + 365 * 86_400_000).toISOString(),
+      monthlyRent: 1900,
+    })).status).toBe(409);
+    const draftRenewal = await request(app).post(`/api/leases/${leaseId}/renew`).set('Authorization', `Bearer ${managerToken}`).send({
+      startDate: currentLease.endDate.toISOString(),
+      endDate: new Date(currentLease.endDate.getTime() + 365 * 86_400_000).toISOString(),
+      monthlyRent: 1900,
+    });
+    expect(draftRenewal.status).toBe(201);
+    expect(draftRenewal.body.lease.status).toBe('DRAFT');
+    expect((await request(app).post(`/api/leases/${draftRenewal.body.lease.id}/move-out`).set('Authorization', `Bearer ${managerToken}`).send({ reason: 'Draft cannot move out' })).status).toBe(409);
+    expect((await request(app).delete(`/api/leases/${draftRenewal.body.lease.id}`).set('Authorization', `Bearer ${managerToken}`)).status).toBe(204);
+    expect((await request(app).delete('/api/leases/missing').set('Authorization', `Bearer ${managerToken}`)).status).toBe(404);
 
     const payment = await request(app)
       .post('/api/payments')
@@ -180,6 +213,29 @@ describe.skipIf(!runDatabaseTests)('PostgreSQL role workflow integration', () =>
     const ownerPortal = await request(app).get('/api/portal/owner').set('Authorization', `Bearer ${ownerToken}`);
     expect(ownerPortal.status).toBe(200);
     expect(ownerPortal.body.properties[0].id).toBe(propertyId);
+
+    const movedOut = await request(app).post(`/api/leases/${leaseId}/move-out`).set('Authorization', `Bearer ${managerToken}`).send({
+      endDate: new Date().toISOString(),
+      reason: 'Integration move-out completed',
+    });
+    expect(movedOut.status).toBe(200);
+    expect(movedOut.body.lease.status).toBe('ENDED');
+    const activeRenewal = await request(app).post(`/api/leases/${leaseId}/renew`).set('Authorization', `Bearer ${managerToken}`).send({
+      startDate: movedOut.body.lease.endDate,
+      endDate: new Date(Date.now() + 365 * 86_400_000).toISOString(),
+      monthlyRent: 1950,
+      securityDeposit: 1950,
+      activate: true,
+      notes: 'Active integration renewal',
+    });
+    expect(activeRenewal.status).toBe(201);
+    expect(activeRenewal.body.lease.status).toBe('ACTIVE');
+    expect((await request(app).delete(`/api/leases/${activeRenewal.body.lease.id}`).set('Authorization', `Bearer ${managerToken}`)).status).toBe(409);
+    expect((await request(app).post(`/api/leases/${activeRenewal.body.lease.id}/move-out`).set('Authorization', `Bearer ${managerToken}`).send({
+      reason: 'Renewal terminated',
+      terminated: true,
+    })).status).toBe(200);
+    expect((await request(app).delete(`/api/leases/${activeRenewal.body.lease.id}`).set('Authorization', `Bearer ${managerToken}`)).status).toBe(204);
 
     expect((await request(app).get('/api/dashboard').set('Authorization', `Bearer ${managerToken}`)).status).toBe(200);
     expect((await request(app).get('/api/reports/portfolio').set('Authorization', `Bearer ${managerToken}`)).status).toBe(200);
