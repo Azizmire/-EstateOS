@@ -52,6 +52,7 @@ authorization, durable data, and deployment-ready infrastructure.
 - [API overview](#-api-overview)
 - [Screenshots](#-screenshots)
 - [Documentation](#-documentation)
+- [Developer](#-developer)
 - [Roadmap](#-roadmap)
 - [Release status](#-release-status)
 
@@ -514,6 +515,16 @@ documentation is served from `/api/docs` by a running API.
 | [Production checklist](PRODUCTION_CHECKLIST.md) | Repository-complete and infrastructure-required release gates |
 | [Production readiness report](PRODUCTION_READINESS.md) | Verified builds, tests, coverage, containers, migrations, risks, and readiness |
 | [MIT license](LICENSE) | Open-source license |
+
+---
+
+## 👨‍💻 Developer
+
+EstateOS is designed and developed by
+**[Abdiaziz Mire](https://github.com/Azizmire)**—a
+**Software Engineer / Software Developer** focused on building secure,
+maintainable, production-oriented applications with thoughtful user
+experiences and dependable engineering foundations.
 
 ---
 
